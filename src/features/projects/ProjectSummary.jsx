@@ -1,9 +1,20 @@
 import React from 'react';
-import { CheckCircle2, ArrowRight, Zap, Database, BarChart3, Play } from 'lucide-react';
+import {
+    CheckCircle2,
+    ArrowRight,
+    Zap,
+    Database,
+    MessageSquare,
+    BarChart3,
+    Clock,
+    User,
+    ChevronRight,
+    Play
+} from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export const ProjectSummary = () => {
-    const { setStep } = useAppStore();
+    const { setStep, newProjectData } = useAppStore();
 
     const sections = [
         { id: 1, label: 'Criteria Config', status: 'verified', icon: Database },
@@ -20,14 +31,11 @@ export const ProjectSummary = () => {
                         <CheckCircle2 size={32} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Project Readiness Summary</h1>
-                        <p className="text-slate-500 font-medium">All clinical validation steps completed. Ready for full cohort execution.</p>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Neurology Project Readiness Summary</h1>
+                        <p className="text-slate-500 font-medium">All neurology validation steps completed. Ready for full cohort execution.</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setStep(6)}
-                    className="flex items-center gap-3 bg-primary text-white px-10 py-5 rounded-[2rem] text-sm font-black uppercase tracking-widest shadow-2xl shadow-primary/25 hover:scale-[1.02] active:scale-95 transition-all group"
-                >
+                <button onClick={() => setStep(5)} className="flex items-center gap-3 bg-primary text-white px-10 py-5 rounded-[2rem] text-sm font-black uppercase tracking-widest shadow-2xl shadow-primary/25 hover:scale-[1.02] active:scale-95 transition-all group">
                     <Play size={20} className="fill-white" />
                     INITIATE FULL RUN
                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -44,9 +52,7 @@ export const ProjectSummary = () => {
                                 </div>
                                 <h3 className="text-lg font-black text-slate-900">{section.label}</h3>
                             </div>
-                            <span className="px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                                {section.status}
-                            </span>
+                            <span className="px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-100">{section.status}</span>
                         </div>
                         <div className="space-y-4">
                             <div className="flex items-center justify-between text-xs font-bold">
@@ -67,12 +73,12 @@ export const ProjectSummary = () => {
                     <div className="space-y-2">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total Patient Universe</span>
                         <div className="text-4xl font-black tabular-nums tracking-tighter">154,202</div>
-                        <p className="text-xs text-slate-400 leading-relaxed font-medium">Filtered & De-duplicated patients from hospital index.</p>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">Filtered &amp; de-duplicated neurology patients from neuro index.</p>
                     </div>
                     <div className="space-y-2">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Clinical Sample Verified</span>
                         <div className="text-4xl font-black tabular-nums tracking-tighter">50</div>
-                        <p className="text-xs text-slate-400 leading-relaxed font-medium">Manual adjudication complete with 98% AI alignment.</p>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">Neurology manual adjudication complete with 98% AI alignment.</p>
                     </div>
                     <div className="space-y-2">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Estimated Duration</span>

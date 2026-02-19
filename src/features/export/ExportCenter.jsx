@@ -17,8 +17,8 @@ export const ExportCenter = () => {
     const { setStep } = useAppStore();
 
     const artifacts = [
-        { id: 'report', name: 'Clinical Validation Report', type: 'PDF', size: '2.4 MB', desc: 'High-level summary of eligibility distribution and inclusion/exclusion statistics.', icon: FileText, color: 'bg-red-50 text-red-600' },
-        { id: 'audit', name: 'Full Audit Trail', type: 'JSON', size: '18.1 MB', desc: 'Raw machine-readable logs including evidence snippets and confidence scores for every patient.', icon: FileJson, color: 'bg-blue-50 text-blue-600' },
+        { id: 'report', name: 'Neurology Clinical Validation Report', type: 'PDF', size: '2.4 MB', desc: 'Neurology eligibility summary: seizure/epilepsy inclusion distribution and exclusion statistics.', icon: FileText, color: 'bg-red-50 text-red-600' },
+        { id: 'audit', name: 'Full Audit Trail', type: 'JSON', size: '18.1 MB', desc: 'Raw neurology audit logs: EEG/imaging evidence snippets and eligibility confidence per patient.', icon: FileJson, color: 'bg-blue-50 text-blue-600' },
         { id: 'bundle', name: 'Regulatory Submission Bundle', type: 'ZIP', size: '42.5 MB', desc: 'Consolidated package including source PDF references and signed validator certificates.', icon: Archive, color: 'bg-indigo-50 text-indigo-600' }
     ];
 
@@ -30,7 +30,7 @@ export const ExportCenter = () => {
                 </div>
                 <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Run Complete!</h1>
                 <p className="text-lg text-slate-500 max-w-xl mx-auto">
-                    Cohort execution <strong>RUN-2024-8821</strong> has been successfully finalized and signed.
+                    Cohort execution <strong>RUN-2024-8821</strong> has been successfully finalized and signed. Your clinical artifacts are ready for export.
                 </p>
             </div>
 
@@ -48,7 +48,7 @@ export const ExportCenter = () => {
                             <p className="text-sm text-slate-500 leading-relaxed max-w-lg">{artifact.desc}</p>
                             <div className="flex items-center gap-4 mt-3 text-xs text-slate-400 font-medium tracking-tight">
                                 <span className="flex items-center gap-1"><FileCheck size={12} /> Size: {artifact.size}</span>
-                                <span className="flex items-center gap-1"><ShieldCheck size={12} className="text-green-500" /> Signed & Verified</span>
+                                <span className="flex items-center gap-1"><ShieldCheck size={12} className="text-green-500" /> Signed &amp; Verified</span>
                             </div>
                         </div>
                         <button className="flex items-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:scale-105 transition-transform shadow-lg shadow-slate-900/10">
@@ -70,7 +70,8 @@ export const ExportCenter = () => {
                 <div className="flex gap-3">
                     <button className="flex items-center gap-2 text-sm font-bold text-primary hover:underline px-4 py-2">VIEW API DOCS <ExternalLink size={14} /></button>
                     <button onClick={() => setStep(0)} className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/20">
-                        RETURN TO DASHBOARD <ChevronRight size={16} />
+                        RETURN TO DASHBOARD
+                        <ChevronRight size={16} />
                     </button>
                 </div>
             </div>

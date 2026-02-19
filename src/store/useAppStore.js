@@ -64,13 +64,5 @@ export const useAppStore = create((set) => ({
     lockRun: (runId) => set({ runId, isRunLocked: true }),
     resetRun: () => set({ runId: null, isRunLocked: false, currentStep: 2 }),
 
-    setCohort: (file) => set({ cohortFile: file }),
-
-    resetNewProjectData: () => set({
-        newProjectData: {
-            name: '', disease: '', projectType: '', goals: '',
-            teamEmails: { lead: '', reviewer: '', dsTeam: '', dataTeam: '', reviewer1: '', reviewer2: '' },
-            criteria: [], isInitializingPatients: false
-        }
-    }),
+    setCohort: (file) => set({ cohortFile: file })
 }));

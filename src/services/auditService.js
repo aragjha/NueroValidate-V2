@@ -17,16 +17,13 @@ class AuditService {
             entityId,
             metadata
         };
-
         this.logs.push(entry);
-
         console.group(`[AUDIT TRAIL] ${action}`);
         console.log(`User: ${user}`);
         console.log(`Entity: ${entityId}`);
         console.log(`Timestamp: ${entry.timestamp}`);
         console.log('Metadata:', metadata);
         console.groupEnd();
-
         return entry;
     }
 

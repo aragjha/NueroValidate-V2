@@ -17,11 +17,9 @@ export const MockApiService = {
 
     executeStep: async (stepName, shouldFail = false) => {
         await delay(1500);
-
         if (shouldFail) {
             throw new Error(`AI processing failed during ${stepName}: Malformed token response from model.`);
         }
-
         switch (stepName) {
             case 'extraction':
                 return { status: 'success', evidence: 'Found mention of HbA1c 8.2% in encounter 2023-10-12' };

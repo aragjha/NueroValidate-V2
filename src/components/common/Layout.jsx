@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, Moon, Sun, Bell, Search, User } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Moon, Sun, Bell, Search, User } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export const Layout = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [drawerOpen, setDrawerOpen] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
 
     const { currentStep } = useAppStore();
@@ -11,7 +12,6 @@ export const Layout = ({ children }) => {
     return (
         <div className={darkMode ? 'dark' : ''}>
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans">
-                {/* Top Navigation */}
                 <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
                     <div className="flex items-center gap-4">
                         <span className="font-bold text-primary tracking-tight text-lg">NEUROAUDIT</span>
@@ -64,14 +64,12 @@ export const Layout = ({ children }) => {
 
                                 <div className="flex-1 py-6 overflow-y-auto">
                                     <div className="space-y-2 px-3">
-                                        {['Project', 'Criteria', 'Candidates', 'Run ID', 'Sample Run', 'Review', 'Full Run', 'Export'].map((step, i) => (
+                                        {['Project', 'Criteria', 'Run ID', 'Sample Run', 'Review', 'Full Run', 'Validate'].map((step, i) => (
                                             <div
                                                 key={step}
-                                                className={`flex items-center gap-4 px-3 py-3 rounded-2xl ${i + 1 === currentStep ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                                    } cursor-pointer transition-all group font-bold text-sm`}
+                                                className={`flex items-center gap-4 px-3 py-3 rounded-2xl ${i === 0 ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'} cursor-pointer transition-all group font-bold text-sm`}
                                             >
-                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] border-2 ${i + 1 === currentStep ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'border-slate-200 dark:border-slate-700'
-                                                    }`}>
+                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] border-2 ${i === 0 ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'border-slate-200 dark:border-slate-700'}`}>
                                                     {i + 1}
                                                 </div>
                                                 {sidebarOpen && <span className="tracking-tight">{step}</span>}

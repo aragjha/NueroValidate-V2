@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { AppProvider, useAppContext } from '@/context/AppContext';
 import { AuthPage } from '@/pages/AuthPage';
@@ -9,6 +9,7 @@ import { ReviewPage } from '@/pages/ReviewPage';
 
 function AppRoutes() {
   const { loading } = useAppContext();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -25,7 +26,7 @@ function AppRoutes() {
       <Route path="/" element={<AuthPage />} />
       <Route element={<AppLayout />}>
         <Route path="/projects" element={<ProjectsPage />} />
-        <Route path="/projects/new" element={<CreateProjectPage />} />
+        <Route path="/projects/new" element={<CreateProjectPage key={location.key} />} />
         <Route path="/projects/:projectId/criteria" element={<CriteriaPage />} />
         <Route path="/projects/:projectId/review" element={<ReviewPage />} />
       </Route>

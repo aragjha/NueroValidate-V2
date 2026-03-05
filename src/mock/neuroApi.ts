@@ -1,6 +1,7 @@
-import type { AuditEntry, Criterion, LogEntry, Notification, Project, ReviewItem, RunConfig } from '../types';
+import type { AuditEntry, Client, Criterion, LogEntry, Notification, Project, ReviewItem, RunConfig } from '../types';
 
 type AppData = {
+  clients: Client[];
   projects: Project[];
   reviewItems: ReviewItem[];
   criteria: Criterion[];
@@ -13,13 +14,79 @@ type AppData = {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const db: AppData = {
+  clients: [
+    {
+      id: 'cli-01',
+      name: 'Biogen',
+      logo: 'BG',
+      industry: 'Neuroscience Biopharma',
+      contactName: 'Dr. Sarah Mitchell',
+      contactEmail: 's.mitchell@biogen.com',
+      contractedRevenue: '$2.4M',
+      status: 'Active',
+      notes: 'Focus on Alzheimer\'s and MS therapies. Primary engagement through aducanumab and tofersen programs.',
+      createdAt: '2024-06-15',
+    },
+    {
+      id: 'cli-02',
+      name: 'Lilly',
+      logo: 'LY',
+      industry: 'Pharmaceutical',
+      contactName: 'Dr. James Chen',
+      contactEmail: 'j.chen@lilly.com',
+      contractedRevenue: '$1.8M',
+      status: 'Active',
+      notes: 'Donanemab AD program and migraine portfolio. Expanding to Parkinson\'s biomarker studies.',
+      createdAt: '2024-08-20',
+    },
+    {
+      id: 'cli-03',
+      name: 'Biohaven',
+      logo: 'BH',
+      industry: 'Neuroscience Pharma',
+      contactName: 'Dr. Maria Lopez',
+      contactEmail: 'm.lopez@biohaven.com',
+      contractedRevenue: '$950K',
+      status: 'Active',
+      notes: 'CGRP migraine prophylaxis cohorts. Expanding into rare neurological disorders.',
+      createdAt: '2025-01-10',
+    },
+    {
+      id: 'cli-04',
+      name: 'Roche',
+      logo: 'RO',
+      industry: 'Global Pharma',
+      contactName: 'Dr. Hans Weber',
+      contactEmail: 'h.weber@roche.com',
+      contractedRevenue: '$3.1M',
+      status: 'Active',
+      notes: 'Gantenerumab AD program, MS ocrelizumab studies, SMA gene therapy validation.',
+      createdAt: '2024-03-05',
+    },
+    {
+      id: 'cli-05',
+      name: 'AbbVie',
+      logo: 'AV',
+      industry: 'Pharmaceutical',
+      contactName: 'Dr. Emily Park',
+      contactEmail: 'e.park@abbvie.com',
+      contractedRevenue: '$1.2M',
+      status: 'Inactive',
+      notes: 'Migraine and Parkinson\'s pipeline. Currently in renewal discussions.',
+      createdAt: '2024-11-01',
+    },
+  ],
   projects: [
     {
       id: 'prj-01',
       name: 'Migraine Prophylaxis RWE Cohort',
+      description: 'Evaluate CGRP inhibitor efficacy in high-frequency episodic migraine patients using real-world evidence.',
+      clientId: 'cli-03',
       types: ['RWE'],
       lead: 'Anurag',
       dataSource: 'Epic EHR / S3',
+      dataTypes: ['All'],
+      providers: ['Dent', 'Arizona', 'MIND'],
       patientCount: 12320,
       lastUpdated: '2h ago',
       shared: true,
@@ -28,13 +95,18 @@ const db: AppData = {
       currentStage: 4,
       totalStages: 5,
       teamAvatars: ['AN', 'NI'],
+      criteriaList: ['Migraine frequency ≥ 4 episodes/month', 'No prior brain surgery'],
     },
     {
       id: 'prj-02',
       name: "Alzheimer's Phase III Biomarker Validation",
+      description: 'Validate amyloid PET and CSF biomarker concordance in early-stage AD patients.',
+      clientId: 'cli-01',
       types: ['RWE', 'RWD'],
       lead: 'Nida',
       dataSource: 'Veeva Vault',
+      dataTypes: ['Structured', 'Unstructured'],
+      providers: ['Raleigh', 'JWM'],
       patientCount: 4800,
       lastUpdated: '1d ago',
       shared: true,
@@ -43,13 +115,18 @@ const db: AppData = {
       currentStage: 2,
       totalStages: 5,
       teamAvatars: ['NI', 'NE'],
+      criteriaList: ['MMSE score < 24 (cognitive impairment)'],
     },
     {
       id: 'prj-03',
       name: "Parkinson's Motor Symptom Progression Study",
+      description: 'Track motor symptom progression and treatment response in PD patients across multiple providers.',
+      clientId: 'cli-02',
       types: ['RWD'],
       lead: 'Neha',
       dataSource: 'Flatiron Health',
+      dataTypes: ['Unstructured'],
+      providers: ['FCN', 'TNG', 'Dent'],
       patientCount: 7200,
       lastUpdated: '3d ago',
       shared: false,
@@ -58,13 +135,18 @@ const db: AppData = {
       currentStage: 1,
       totalStages: 5,
       teamAvatars: ['NE', 'SO', 'AN'],
+      criteriaList: ['Tremor assessment documented'],
     },
     {
       id: 'prj-04',
       name: 'Multiple Sclerosis Relapse Prevention Cohort',
+      description: 'Assess DMT escalation patterns and relapse reduction in RRMS patients from real-world data.',
+      clientId: 'cli-04',
       types: ['RWE', 'RWD'],
       lead: 'Sonick',
       dataSource: 'OMOP CDM',
+      dataTypes: ['All'],
+      providers: ['Arizona', 'MIND', 'Raleigh'],
       patientCount: 9410,
       lastUpdated: '2h ago',
       shared: true,
@@ -73,13 +155,18 @@ const db: AppData = {
       currentStage: 4,
       totalStages: 5,
       teamAvatars: ['SO', 'AN'],
+      criteriaList: ['MS relapse within 12 months'],
     },
     {
       id: 'prj-05',
       name: 'AD Tau PET Imaging Validation',
+      description: 'Validate tau PET tracer uptake patterns against clinical cognitive decline measures.',
+      clientId: 'cli-01',
       types: ['RWD'],
       lead: 'Anurag',
       dataSource: 'ADNI Repository',
+      dataTypes: ['Structured'],
+      providers: ['JWM', 'FCN'],
       patientCount: 3200,
       lastUpdated: '2d ago',
       shared: true,
@@ -88,13 +175,18 @@ const db: AppData = {
       currentStage: 3,
       totalStages: 5,
       teamAvatars: ['AN', 'NI'],
+      criteriaList: ['MMSE score < 24 (cognitive impairment)', 'No prior brain surgery'],
     },
     {
       id: 'prj-06',
       name: 'Epilepsy Focal Seizure Frequency Analysis',
+      description: 'Analyze seizure frequency patterns and AED response in focal epilepsy cohort.',
+      clientId: 'cli-02',
       types: ['RWE'],
       lead: 'Nida',
       dataSource: 'Redshift DW',
+      dataTypes: ['All'],
+      providers: ['TNG'],
       patientCount: 5100,
       lastUpdated: '2w ago',
       shared: false,
@@ -103,234 +195,76 @@ const db: AppData = {
       currentStage: 5,
       totalStages: 5,
       teamAvatars: ['NI'],
+      criteriaList: ['No prior brain surgery'],
     },
   ],
   criteria: [
     {
-      id: 'cri-01',
-      name: 'Migraine frequency ≥ 4 episodes/month',
-      type: 'inclusion',
+      id: 'cri-01', name: 'Migraine frequency ≥ 4 episodes/month', type: 'inclusion',
       description: 'Patient must have documented migraine frequency of 4 or more episodes per month over at least 3 months.',
       extractionPrompt: 'Extract all mentions of migraine episode frequency, headache days per month, and migraine attack counts from the clinical notes.',
       extractionValidation: 'Verify the extracted frequency is a numeric value and corresponds to migraine-specific episodes, not general headaches.',
       reasoningPrompt: 'Based on the extracted evidence, determine if the patient meets the threshold of ≥ 4 migraine episodes per month consistently.',
       reasoningValidation: 'Confirm the reasoning accounts for temporal consistency (≥ 3 months) and distinguishes migraine from tension-type headaches.',
       model: 'GPT-4.1',
+      keywords: ['migraine', 'headache', 'aura', 'triptan', 'CGRP', 'episodic', 'frequency', 'headache days'],
     },
     {
-      id: 'cri-02',
-      name: 'MMSE score < 24 (cognitive impairment)',
-      type: 'inclusion',
+      id: 'cri-02', name: 'MMSE score < 24 (cognitive impairment)', type: 'inclusion',
       description: 'Patient must have a documented Mini-Mental State Examination score below 24 indicating cognitive impairment.',
       extractionPrompt: 'Extract MMSE scores, cognitive assessment results, and any neuropsychological testing scores from the encounter notes.',
       extractionValidation: 'Validate that extracted scores are from MMSE specifically and not other cognitive scales like MoCA unless converted.',
       reasoningPrompt: 'Determine if the patient has documented cognitive impairment based on MMSE score < 24 at any point during the study period.',
       reasoningValidation: 'Ensure the reasoning differentiates between baseline and follow-up scores and considers confounders like delirium.',
       model: 'GPT-4.1',
+      keywords: ['MMSE', 'cognitive', 'dementia', 'memory', 'orientation', 'recall', 'visuospatial'],
     },
     {
-      id: 'cri-03',
-      name: 'No prior brain surgery',
-      type: 'exclusion',
+      id: 'cri-03', name: 'No prior brain surgery', type: 'exclusion',
       description: 'Exclude patients with any documented history of neurosurgical intervention including craniotomy, DBS implant, or shunt placement.',
       extractionPrompt: 'Extract any mentions of brain surgery, craniotomy, deep brain stimulation, VP shunt, or other neurosurgical procedures.',
       extractionValidation: 'Confirm that surgical references are neurosurgical and not unrelated procedures. Check for negated mentions.',
       reasoningPrompt: 'Determine if the patient has any history of brain surgery that would make them ineligible for the study.',
       reasoningValidation: 'Verify the reasoning correctly handles negation (e.g. "no history of brain surgery") and temporal context.',
       model: 'Claude Sonnet',
+      keywords: ['craniotomy', 'brain surgery', 'DBS', 'shunt', 'neurosurgery', 'lobectomy'],
     },
     {
-      id: 'cri-04',
-      name: 'Tremor assessment documented',
-      type: 'inclusion',
+      id: 'cri-04', name: 'Tremor assessment documented', type: 'inclusion',
       description: 'Patient must have at least one documented tremor assessment (UPDRS Part III or equivalent) in the study period.',
       extractionPrompt: 'Extract all tremor assessments, UPDRS scores, motor examination findings related to tremor, and movement disorder evaluations.',
       extractionValidation: 'Ensure extracted data pertains to tremor specifically and includes standardized scoring when available.',
       reasoningPrompt: 'Assess whether a formal tremor evaluation has been documented and whether it meets the study protocol requirements.',
       reasoningValidation: 'Confirm reasoning distinguishes between incidental tremor mentions and formal structured assessments.',
       model: 'GPT-4.1',
+      keywords: ['tremor', 'UPDRS', 'resting tremor', 'postural tremor', 'bradykinesia', 'rigidity'],
     },
     {
-      id: 'cri-05',
-      name: 'MS relapse within 12 months',
-      type: 'inclusion',
+      id: 'cri-05', name: 'MS relapse within 12 months', type: 'inclusion',
       description: 'Patient must have experienced at least one confirmed MS relapse within the past 12 months of enrollment.',
       extractionPrompt: 'Extract all mentions of MS relapses, exacerbations, flare-ups, new or enlarging T2 lesions, and Gd-enhancing lesions from clinical and radiology notes.',
       extractionValidation: 'Validate that the identified events are true relapses (new neurological symptoms lasting > 24h) and not pseudo-relapses.',
       reasoningPrompt: 'Determine if the patient had a confirmed MS relapse within the 12-month window preceding enrollment date.',
       reasoningValidation: 'Ensure reasoning accounts for the temporal window and distinguishes relapses from progression or pseudo-relapses.',
       model: 'Gemini 2.5 Pro',
+      keywords: ['relapse', 'exacerbation', 'T2 lesion', 'Gd-enhancing', 'optic neuritis', 'flare-up', 'DMT'],
     },
   ],
   runs: [
-    {
-      id: 'run-cfg-01',
-      runId: 'RUN-001',
-      criterionId: 'cri-01',
-      overrideModels: false,
-      overridePrompts: false,
-      overrideKeywords: false,
-      sampleSize: 50,
-      patientIds: '',
-      reuseSample: false,
-      fullRun: false,
-      status: 'Done',
-      extractionCount: 48,
-      totalCount: 50,
-      fileName: 'migraine_cohort_batch_01.csv',
-    },
-    {
-      id: 'run-cfg-02',
-      runId: 'RUN-002',
-      criterionId: 'cri-02',
-      overrideModels: true,
-      overridePrompts: false,
-      overrideKeywords: false,
-      sampleSize: 30,
-      patientIds: '',
-      reuseSample: true,
-      fullRun: false,
-      status: 'Processing',
-      extractionCount: 12,
-      totalCount: 30,
-      fileName: 'alzheimers_mmse_batch_02.csv',
-    },
+    { id: 'run-cfg-01', runId: 'RUN-001', criterionId: 'cri-01', overrideModels: false, overridePrompts: false, overrideKeywords: false, sampleSize: 50, patientIds: '', reuseSample: false, fullRun: false, status: 'Done', extractionCount: 48, totalCount: 50, fileName: 'migraine_cohort_batch_01.csv' },
+    { id: 'run-cfg-02', runId: 'RUN-002', criterionId: 'cri-02', overrideModels: true, overridePrompts: false, overrideKeywords: false, sampleSize: 30, patientIds: '', reuseSample: true, fullRun: false, status: 'Processing', extractionCount: 12, totalCount: 30, fileName: 'alzheimers_mmse_batch_02.csv' },
   ],
   reviewItems: [
-    {
-      patientId: 'PT-10211',
-      encounterId: 'ENC-883100',
-      encounterDate: '2025-12-10',
-      processing: 'Done',
-      fileName: 'enc_883100_migraine.txt',
-      evidenceCount: 4,
-      criterionName: 'Migraine frequency ≥ 4 episodes/month',
-      assignedTo: ['Nida'],
-      comments: [
-        { id: 'c1', user: 'Nida', text: 'Evidence clearly shows 6 episodes/month documented across 3 visits.', timestamp: '2025-12-11 09:15' },
-      ],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10211',
-      encounterId: 'ENC-883109',
-      encounterDate: '2025-12-13',
-      processing: 'Done',
-      fileName: 'enc_883109_migraine.txt',
-      evidenceCount: 3,
-      criterionName: 'Migraine frequency ≥ 4 episodes/month',
-      assignedTo: ['Nida'],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10520',
-      encounterId: 'ENC-884500',
-      encounterDate: '2025-12-07',
-      processing: 'Done',
-      fileName: 'enc_884500_alzheimers.txt',
-      evidenceCount: 2,
-      criterionName: 'MMSE score < 24 (cognitive impairment)',
-      assignedTo: ['Anurag'],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10520',
-      encounterId: 'ENC-884501',
-      encounterDate: '2025-12-14',
-      processing: 'Done',
-      fileName: 'enc_884501_alzheimers.txt',
-      evidenceCount: 5,
-      criterionName: 'MMSE score < 24 (cognitive impairment)',
-      assignedTo: ['Anurag'],
-      comments: [
-        { id: 'c2', user: 'Anurag', text: 'MMSE dropped from 22 to 19 over 6 months — clear progression.', timestamp: '2025-12-15 14:30' },
-      ],
-      flagged: true,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10602',
-      encounterId: 'ENC-885007',
-      encounterDate: '2025-12-11',
-      processing: 'Done',
-      fileName: 'enc_885007_parkinsons.txt',
-      evidenceCount: 3,
-      criterionName: 'Tremor assessment documented',
-      assignedTo: ['Neha'],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10602',
-      encounterId: 'ENC-885008',
-      encounterDate: '2025-12-18',
-      processing: 'Processing',
-      fileName: 'enc_885008_parkinsons.txt',
-      evidenceCount: 0,
-      criterionName: 'Tremor assessment documented',
-      assignedTo: ['Neha'],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10780',
-      encounterId: 'ENC-886200',
-      encounterDate: '2025-12-09',
-      processing: 'Done',
-      fileName: 'enc_886200_ms.txt',
-      evidenceCount: 6,
-      criterionName: 'MS relapse within 12 months',
-      assignedTo: ['Sonick'],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10780',
-      encounterId: 'ENC-886201',
-      encounterDate: '2025-12-20',
-      processing: 'Failed',
-      fileName: 'enc_886201_ms.txt',
-      evidenceCount: 0,
-      criterionName: 'MS relapse within 12 months',
-      assignedTo: [],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10899',
-      encounterId: 'ENC-887300',
-      encounterDate: '2025-12-15',
-      processing: 'Done',
-      fileName: 'enc_887300_epilepsy.txt',
-      evidenceCount: 4,
-      criterionName: 'No prior brain surgery',
-      assignedTo: [],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
-    {
-      patientId: 'PT-10899',
-      encounterId: 'ENC-887301',
-      encounterDate: '2025-12-22',
-      processing: 'Queued',
-      fileName: 'enc_887301_epilepsy.txt',
-      evidenceCount: 0,
-      criterionName: 'No prior brain surgery',
-      assignedTo: [],
-      comments: [],
-      flagged: false,
-      decisionLog: [],
-    },
+    { patientId: 'PT-10211', encounterId: 'ENC-883100', encounterDate: '2025-12-10', processing: 'Done', fileName: 'enc_883100_migraine.txt', evidenceCount: 4, criterionName: 'Migraine frequency ≥ 4 episodes/month', llmEligibility: 'Eligible', llmReason: 'Patient reports 6 migraine episodes per month with aura. Headache diary confirms ≥ 4 episodes/month threshold over 4 consecutive months. CGRP inhibitor prescribed indicating high-frequency pattern.', assignedTo: ['Nida'], comments: [{ id: 'c1', user: 'Nida', text: 'Evidence clearly shows 6 episodes/month documented across 3 visits.', timestamp: '2025-12-11 09:15' }], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10211', encounterId: 'ENC-883109', encounterDate: '2025-12-13', processing: 'Done', fileName: 'enc_883109_migraine.txt', evidenceCount: 3, criterionName: 'Migraine frequency ≥ 4 episodes/month', llmEligibility: 'Eligible', llmReason: 'Continuation encounter confirms ongoing migraine pattern. Rescue triptan usage 5-7 times per month further supports high-frequency episodic migraine classification.', assignedTo: ['Nida'], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10520', encounterId: 'ENC-884500', encounterDate: '2025-12-07', processing: 'Done', fileName: 'enc_884500_alzheimers.txt', evidenceCount: 2, criterionName: 'MMSE score < 24 (cognitive impairment)', llmEligibility: 'Ineligible', llmReason: 'MMSE score at this encounter was 25/30, which does not meet the < 24 threshold for cognitive impairment inclusion.', assignedTo: ['Anurag'], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10520', encounterId: 'ENC-884501', encounterDate: '2025-12-14', processing: 'Done', fileName: 'enc_884501_alzheimers.txt', evidenceCount: 5, criterionName: 'MMSE score < 24 (cognitive impairment)', llmEligibility: 'Eligible', llmReason: 'MMSE score 19/30, significant decline from prior baseline of 26/30. MoCA 15/30 corroborates cognitive impairment. Meets inclusion criterion.', assignedTo: ['Anurag'], comments: [{ id: 'c2', user: 'Anurag', text: 'MMSE dropped from 22 to 19 over 6 months — clear progression.', timestamp: '2025-12-15 14:30' }], flagged: true, decisionLog: [] },
+    { patientId: 'PT-10602', encounterId: 'ENC-885007', encounterDate: '2025-12-11', processing: 'Done', fileName: 'enc_885007_parkinsons.txt', evidenceCount: 3, criterionName: 'Tremor assessment documented', llmEligibility: 'Eligible', llmReason: 'UPDRS Part III motor examination documented with resting tremor score 3/4 in right upper extremity. Formal tremor assessment present.', assignedTo: ['Neha'], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10602', encounterId: 'ENC-885008', encounterDate: '2025-12-18', processing: 'Processing', fileName: 'enc_885008_parkinsons.txt', evidenceCount: 0, criterionName: 'Tremor assessment documented', assignedTo: ['Neha'], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10780', encounterId: 'ENC-886200', encounterDate: '2025-12-09', processing: 'Done', fileName: 'enc_886200_ms.txt', evidenceCount: 6, criterionName: 'MS relapse within 12 months', llmEligibility: 'Eligible', llmReason: 'Acute optic neuritis confirmed as MS relapse 3 months ago. New Gd-enhancing lesion on MRI. Two relapses within 8 months. Clearly meets the 12-month relapse criterion.', assignedTo: ['Sonick'], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10780', encounterId: 'ENC-886201', encounterDate: '2025-12-20', processing: 'Failed', fileName: 'enc_886201_ms.txt', evidenceCount: 0, criterionName: 'MS relapse within 12 months', assignedTo: [], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10899', encounterId: 'ENC-887300', encounterDate: '2025-12-15', processing: 'Done', fileName: 'enc_887300_epilepsy.txt', evidenceCount: 4, criterionName: 'No prior brain surgery', llmEligibility: 'Eligible', llmReason: 'Surgical history reviewed: appendectomy and knee arthroscopy only. No cranial procedures, craniotomy, or neurostimulation device history documented. Meets exclusion criterion (no prior brain surgery).', assignedTo: [], comments: [], flagged: false, decisionLog: [] },
+    { patientId: 'PT-10899', encounterId: 'ENC-887301', encounterDate: '2025-12-22', processing: 'Queued', fileName: 'enc_887301_epilepsy.txt', evidenceCount: 0, criterionName: 'No prior brain surgery', assignedTo: [], comments: [], flagged: false, decisionLog: [] },
   ],
   audit: [
     { id: 'a1', timestamp: '2025-12-20 10:00', user: 'Anurag', action: 'Prompt updated', detail: 'Extraction prompt v3 → v4 for Migraine frequency criterion' },
@@ -364,16 +298,16 @@ export async function fetchAppData() {
   return structuredClone(db);
 }
 
+export async function createClient(client: Client): Promise<Client> {
+  await delay(200);
+  db.clients.unshift(client);
+  return structuredClone(client);
+}
+
 export async function createProject(project: Project): Promise<Project> {
   await delay(260);
   db.projects.unshift(project);
-  db.audit.unshift({
-    id: `a-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    user: 'System',
-    action: 'Project created',
-    detail: `Project "${project.name}" created`,
-  });
+  db.audit.unshift({ id: `a-${Date.now()}`, timestamp: new Date().toISOString(), user: 'System', action: 'Project created', detail: `Project "${project.name}" created` });
   return structuredClone(project);
 }
 
@@ -381,111 +315,39 @@ export async function deleteProject(projectId: string): Promise<void> {
   await delay(160);
   const p = db.projects.find((proj) => proj.id === projectId);
   db.projects = db.projects.filter((proj) => proj.id !== projectId);
-  db.audit.unshift({
-    id: `a-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    user: 'System',
-    action: 'Project deleted',
-    detail: `Project "${p?.name ?? projectId}" deleted`,
-  });
+  db.audit.unshift({ id: `a-${Date.now()}`, timestamp: new Date().toISOString(), user: 'System', action: 'Project deleted', detail: `Project "${p?.name ?? projectId}" deleted` });
 }
 
 export async function duplicateProject(projectId: string): Promise<Project | null> {
   await delay(200);
   const orig = db.projects.find((p) => p.id === projectId);
   if (!orig) return null;
-  const dup: Project = {
-    ...structuredClone(orig),
-    id: `prj-${Math.random().toString(36).slice(2, 8)}`,
-    name: `${orig.name} (Copy)`,
-    lastUpdated: 'Now',
-    stageProgress: 0,
-    currentStage: 1,
-  };
+  const dup: Project = { ...structuredClone(orig), id: `prj-${Math.random().toString(36).slice(2, 8)}`, name: `${orig.name} (Copy)`, lastUpdated: 'Now', stageProgress: 0, currentStage: 1 };
   db.projects.unshift(dup);
   return dup;
 }
 
-export async function assignPatients(payload: {
-  patientIds: string[];
-  assignees: string[];
-}): Promise<void> {
+export async function assignPatients(payload: { patientIds: string[]; assignees: string[] }): Promise<void> {
   await delay(340);
-  db.reviewItems = db.reviewItems.map((item) =>
-    payload.patientIds.includes(item.patientId)
-      ? { ...item, assignedTo: payload.assignees }
-      : item,
-  );
-  db.audit.unshift({
-    id: `a-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    user: 'System',
-    action: 'Patients assigned',
-    detail: `${payload.patientIds.length} patients assigned to ${payload.assignees.join(', ')}`,
-  });
+  db.reviewItems = db.reviewItems.map((item) => payload.patientIds.includes(item.patientId) ? { ...item, assignedTo: payload.assignees } : item);
+  db.audit.unshift({ id: `a-${Date.now()}`, timestamp: new Date().toISOString(), user: 'System', action: 'Patients assigned', detail: `${payload.patientIds.length} patients assigned to ${payload.assignees.join(', ')}` });
 }
 
-export async function updateDecision(payload: {
-  encounterId: string;
-  decision: 'True' | 'False' | 'Unclear';
-  reviewedBy: string;
-  reason: string;
-  comment?: string;
-}): Promise<void> {
+export async function updateDecision(payload: { encounterId: string; decision: 'True' | 'False' | 'Unclear'; reviewedBy: string; reason: string; comment?: string }): Promise<void> {
   await delay(200);
   db.reviewItems = db.reviewItems.map((item) =>
     item.encounterId === payload.encounterId
-      ? {
-          ...item,
-          decision: payload.decision,
-          reviewedBy: payload.reviewedBy,
-          reason: payload.reason,
-          comments: payload.comment
-            ? [
-                ...(item.comments ?? []),
-                {
-                  id: `c-${Date.now()}`,
-                  user: payload.reviewedBy,
-                  text: payload.comment,
-                  timestamp: new Date().toLocaleString(),
-                },
-              ]
-            : item.comments,
-          decisionLog: [
-            ...(item.decisionLog ?? []),
-            {
-              decision: payload.decision,
-              user: payload.reviewedBy,
-              timestamp: new Date().toLocaleString(),
-              reason: payload.reason,
-            },
-          ],
-        }
+      ? { ...item, decision: payload.decision, reviewedBy: payload.reviewedBy, reason: payload.reason, comments: payload.comment ? [...(item.comments ?? []), { id: `c-${Date.now()}`, user: payload.reviewedBy, text: payload.comment, timestamp: new Date().toLocaleString() }] : item.comments, decisionLog: [...(item.decisionLog ?? []), { decision: payload.decision, user: payload.reviewedBy, timestamp: new Date().toLocaleString(), reason: payload.reason }] }
       : item,
   );
 }
 
-export async function updateComment(payload: {
-  encounterId: string;
-  commentId: string;
-  newText: string;
-}): Promise<void> {
+export async function updateComment(payload: { encounterId: string; commentId: string; newText: string }): Promise<void> {
   await delay(150);
-  db.reviewItems = db.reviewItems.map((item) =>
-    item.encounterId === payload.encounterId
-      ? {
-          ...item,
-          comments: (item.comments ?? []).map((c) =>
-            c.id === payload.commentId ? { ...c, text: payload.newText } : c,
-          ),
-        }
-      : item,
-  );
+  db.reviewItems = db.reviewItems.map((item) => item.encounterId === payload.encounterId ? { ...item, comments: (item.comments ?? []).map((c) => c.id === payload.commentId ? { ...c, text: payload.newText } : c) } : item);
 }
 
 export async function toggleFlag(encounterId: string): Promise<void> {
   await delay(100);
-  db.reviewItems = db.reviewItems.map((item) =>
-    item.encounterId === encounterId ? { ...item, flagged: !item.flagged } : item,
-  );
+  db.reviewItems = db.reviewItems.map((item) => item.encounterId === encounterId ? { ...item, flagged: !item.flagged } : item);
 }

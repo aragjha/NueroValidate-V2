@@ -3,13 +3,34 @@ export type Role = 'Admin' | 'Reviewer';
 export type Status = 'Queued' | 'Processing' | 'Done' | 'Failed';
 
 export type ProjectType = 'RWE' | 'RWD';
+export type DataType = 'All' | 'Structured' | 'Unstructured';
+export type Provider = 'Dent' | 'Arizona' | 'MIND' | 'Raleigh' | 'JWM' | 'FCN' | 'TNG';
+
+export const ALL_PROVIDERS: Provider[] = ['Dent', 'Arizona', 'MIND', 'Raleigh', 'JWM', 'FCN', 'TNG'];
+
+export type Client = {
+  id: string;
+  name: string;
+  logo: string;
+  industry: string;
+  contactName: string;
+  contactEmail: string;
+  contractedRevenue: string;
+  status: 'Active' | 'Inactive';
+  notes: string;
+  createdAt: string;
+};
 
 export type Project = {
   id: string;
   name: string;
+  description: string;
+  clientId: string;
   types: ProjectType[];
   lead: string;
   dataSource: string;
+  dataTypes: DataType[];
+  providers: Provider[];
   patientCount: number;
   lastUpdated: string;
   shared: boolean;
@@ -18,6 +39,7 @@ export type Project = {
   currentStage: number;
   totalStages: number;
   teamAvatars: string[];
+  criteriaList: string[];
 };
 
 export type CriterionType = 'inclusion' | 'exclusion';
@@ -32,6 +54,7 @@ export type Criterion = {
   reasoningPrompt: string;
   reasoningValidation: string;
   model: string;
+  keywords: string[];
 };
 
 export type RunConfig = {
@@ -82,6 +105,8 @@ export type ReviewItem = {
   fileName: string;
   evidenceCount: number;
   criterionName: string;
+  llmEligibility?: 'Eligible' | 'Ineligible';
+  llmReason?: string;
   decision?: 'True' | 'False' | 'Unclear';
   reviewedBy?: string;
   reason?: string;

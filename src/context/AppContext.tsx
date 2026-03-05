@@ -10,6 +10,7 @@ import {
 } from 'react';
 import {
   assignPatients,
+  createClient as apiCreateClient,
   createProject,
   deleteProject,
   duplicateProject,
@@ -18,7 +19,7 @@ import {
   updateComment,
   updateDecision,
 } from '@/mock/neuroApi';
-import type { AuditEntry, Criterion, LogEntry, Notification, Project, ReviewItem, Role, RunConfig, Theme } from '@/types';
+import type { AuditEntry, Client, Criterion, LogEntry, Notification, Project, ReviewItem, Role, RunConfig, Theme } from '@/types';
 
 type AppContextValue = {
   loading: boolean;
@@ -26,6 +27,7 @@ type AppContextValue = {
   role: Role;
   currentUser: string;
   users: string[];
+  clients: Client[];
   projects: Project[];
   reviewItems: ReviewItem[];
   criteria: Criterion[];
@@ -36,6 +38,7 @@ type AppContextValue = {
   setTheme: (theme: Theme) => void;
   setRole: (role: Role) => void;
   setCurrentUser: (user: string) => void;
+  addClient: (client: Client) => Promise<void>;
   addProject: (project: Project) => Promise<void>;
   removeProject: (projectId: string) => Promise<void>;
   dupProject: (projectId: string) => Promise<void>;
@@ -61,6 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
   const [role, setRole] = useState<Role>('Admin');
   const [currentUser, setCurrentUser] = useState('Anurag');
+  const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -72,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     const data = await fetchAppData();
+    setClients(data.clients);
     setProjects(data.projects);
     setReviewItems(data.reviewItems);
     setCriteria(data.criteria);
@@ -83,15 +88,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void refresh();
-    }, 0);
+    const timer = setTimeout(() => { void refresh(); }, 0);
     return () => clearTimeout(timer);
   }, [refresh]);
 
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
+  useEffect(() => { document.body.setAttribute('data-theme', theme); }, [theme]);
+
+  const addClient = useCallback(async (client: Client) => {
+    await apiCreateClient(client);
+    setClients((prev) => [client, ...prev]);
+  }, []);
 
   const addProject = useCallback(async (project: Project) => {
     await createProject(project);
@@ -108,88 +114,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (dup) setProjects((prev) => [dup, ...prev]);
   }, []);
 
-  const saveAssignment = useCallback(
-    async (patientIds: string[], assignees: string[]) => {
-      await assignPatients({ patientIds, assignees });
-      setReviewItems((prev) =>
-        prev.map((item) =>
-          patientIds.includes(item.patientId) ? { ...item, assignedTo: assignees } : item,
-        ),
-      );
-    },
-    [],
-  );
+  const saveAssignment = useCallback(async (patientIds: string[], assignees: string[]) => {
+    await assignPatients({ patientIds, assignees });
+    setReviewItems((prev) => prev.map((item) => patientIds.includes(item.patientId) ? { ...item, assignedTo: assignees } : item));
+  }, []);
 
-  const saveDecision = useCallback(
-    async (payload: {
-      encounterId: string;
-      decision: 'True' | 'False' | 'Unclear';
-      reason: string;
-      comment?: string;
-    }) => {
-      await updateDecision({ ...payload, reviewedBy: currentUser });
-      setReviewItems((prev) =>
-        prev.map((item) =>
-          item.encounterId === payload.encounterId
-            ? {
-                ...item,
-                decision: payload.decision,
-                reviewedBy: currentUser,
-                reason: payload.reason,
-                comments: payload.comment
-                  ? [
-                      ...(item.comments ?? []),
-                      {
-                        id: `c-${Date.now()}`,
-                        user: currentUser,
-                        text: payload.comment,
-                        timestamp: new Date().toLocaleString(),
-                      },
-                    ]
-                  : item.comments,
-                decisionLog: [
-                  ...(item.decisionLog ?? []),
-                  {
-                    decision: payload.decision,
-                    user: currentUser,
-                    timestamp: new Date().toLocaleString(),
-                    reason: payload.reason,
-                  },
-                ],
-              }
-            : item,
-        ),
-      );
-    },
-    [currentUser],
-  );
+  const saveDecision = useCallback(async (payload: { encounterId: string; decision: 'True' | 'False' | 'Unclear'; reason: string; comment?: string }) => {
+    await updateDecision({ ...payload, reviewedBy: currentUser });
+    setReviewItems((prev) => prev.map((item) =>
+      item.encounterId === payload.encounterId
+        ? { ...item, decision: payload.decision, reviewedBy: currentUser, reason: payload.reason, comments: payload.comment ? [...(item.comments ?? []), { id: `c-${Date.now()}`, user: currentUser, text: payload.comment, timestamp: new Date().toLocaleString() }] : item.comments, decisionLog: [...(item.decisionLog ?? []), { decision: payload.decision, user: currentUser, timestamp: new Date().toLocaleString(), reason: payload.reason }] }
+        : item,
+    ));
+  }, [currentUser]);
 
-  const editComment = useCallback(
-    async (encounterId: string, commentId: string, newText: string) => {
-      await updateComment({ encounterId, commentId, newText });
-      setReviewItems((prev) =>
-        prev.map((item) =>
-          item.encounterId === encounterId
-            ? {
-                ...item,
-                comments: (item.comments ?? []).map((c) =>
-                  c.id === commentId ? { ...c, text: newText } : c,
-                ),
-              }
-            : item,
-        ),
-      );
-    },
-    [],
-  );
+  const editComment = useCallback(async (encounterId: string, commentId: string, newText: string) => {
+    await updateComment({ encounterId, commentId, newText });
+    setReviewItems((prev) => prev.map((item) => item.encounterId === encounterId ? { ...item, comments: (item.comments ?? []).map((c) => c.id === commentId ? { ...c, text: newText } : c) } : item));
+  }, []);
 
   const toggleItemFlag = useCallback(async (encounterId: string) => {
     await toggleFlag(encounterId);
-    setReviewItems((prev) =>
-      prev.map((item) =>
-        item.encounterId === encounterId ? { ...item, flagged: !item.flagged } : item,
-      ),
-    );
+    setReviewItems((prev) => prev.map((item) => item.encounterId === encounterId ? { ...item, flagged: !item.flagged } : item));
   }, []);
 
   const markNotifRead = useCallback((id: string) => {
@@ -198,36 +144,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppContextValue>(
     () => ({
-      loading,
-      theme,
-      role,
-      currentUser,
-      users,
-      projects,
-      reviewItems,
-      criteria,
-      runs,
-      audit,
-      logs,
-      notifications,
-      setTheme,
-      setRole,
-      setCurrentUser,
-      addProject,
-      removeProject,
-      dupProject,
-      saveAssignment,
-      saveDecision,
-      editComment,
-      toggleItemFlag,
-      markNotifRead,
-      refresh,
+      loading, theme, role, currentUser, users, clients, projects, reviewItems, criteria, runs, audit, logs, notifications,
+      setTheme, setRole, setCurrentUser, addClient, addProject, removeProject, dupProject, saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, refresh,
     }),
-    [
-      loading, theme, role, currentUser, projects, reviewItems, criteria, runs,
-      audit, logs, notifications, addProject, removeProject, dupProject,
-      saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, refresh,
-    ],
+    [loading, theme, role, currentUser, clients, projects, reviewItems, criteria, runs, audit, logs, notifications, addClient, addProject, removeProject, dupProject, saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, refresh],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -8,10 +8,12 @@ export type ViewMode =
   | 'all'
   | 'structured'
   | 'unstructured'
+  | 'mixed'
   | 'eligible'
-  | 'ineligible';
+  | 'ineligible'
+  | 'needs-review';
 
-export type AtomStatus = 'auto-validated' | 'needs-config' | 'in-progress';
+export type AtomStatus = 'auto-validated' | 'needs-config' | 'in-progress' | 'validated';
 
 export type SortMode = 'default' | 'name' | 'pending' | 'yes' | 'no';
 
@@ -44,6 +46,9 @@ export type AtomRowData = {
   gcpPaths: string[];
   status: AtomStatus;
   keywords?: string[];
+  conceptLabel?: string;
+  operator?: string;
+  polarity?: string;
 };
 
 export type Mixedness = 'all-structured' | 'all-unstructured' | 'mixed';
@@ -62,6 +67,14 @@ export type CriterionRowData = {
   pctComplete: number;
 };
 
+export type PatientCriterionFlagRow = {
+  criterionId: string;
+  criterionName: string;
+  criterionType: CriterionType;
+  value: boolean;
+  override?: boolean;
+};
+
 export type PatientRowData = {
   id: string;
   eligible: boolean;
@@ -69,6 +82,7 @@ export type PatientRowData = {
   reviewedBy?: string;
   reviewedAt?: string;
   notes?: string;
+  flags?: PatientCriterionFlagRow[];
 };
 
 /* ─── Constants ─── */
@@ -91,7 +105,7 @@ export const DATA_SOURCE_COLOR: Record<'structured' | 'unstructured', string> = 
 /* ─── Valid enum sets for parse validation ─── */
 
 const VALID_TABS = new Set<TabKey>(['criteria', 'atoms', 'patients']);
-const VALID_VIEWS = new Set<ViewMode>(['all', 'structured', 'unstructured', 'eligible', 'ineligible']);
+const VALID_VIEWS = new Set<ViewMode>(['all', 'structured', 'unstructured', 'mixed', 'eligible', 'ineligible', 'needs-review']);
 const VALID_SORTS = new Set<SortMode>(['default', 'name', 'pending', 'yes', 'no']);
 
 /* ─── URL helpers ─── */
@@ -187,6 +201,9 @@ export function buildAtomRows(cohort: CohortImport): AtomRowData[] {
           gcpPaths: atom.patient_list_no_unstructured_gcp_path,
           status: atomStatus(atom),
           keywords: atom.keywords,
+          conceptLabel: atom.metadata.concept_label,
+          operator: atom.metadata.operator,
+          polarity: atom.metadata.polarity,
         });
       });
     }
@@ -238,9 +255,11 @@ export function criterionMixedness(atomRows: AtomRowData[]): Mixedness {
 /* ─── rollupCriterionStatus ─── */
 
 export function rollupCriterionStatus(atomRows: AtomRowData[]): AtomStatus {
-  if (atomRows.some((a) => a.status === 'needs-config')) return 'needs-config';
-  if (atomRows.some((a) => a.status === 'in-progress')) return 'in-progress';
-  return 'auto-validated';
+  if (atomRows.length === 0) return 'needs-config';
+  if (atomRows.every((a) => a.status === 'auto-validated')) return 'auto-validated';
+  if (atomRows.every((a) => a.status === 'auto-validated' || a.status === 'validated')) return 'validated';
+  if (atomRows.some((a) => a.status === 'in-progress' || a.status === 'validated')) return 'in-progress';
+  return 'needs-config';
 }
 
 /* ─── buildCriterionRows ─── */
@@ -362,6 +381,8 @@ export function applyCriterionFilters(rows: CriterionRowData[], f: FilterState):
 /* ─── buildPatientRows ─── */
 
 export function buildPatientRows(cohort: CohortImport): PatientRowData[] {
+  const criterionMap = new Map(cohort.criteria.map((c) => [c.id, c]));
+
   return cohort.patients.map((p) => ({
     id: p.patientId,
     eligible: p.eligible,
@@ -369,6 +390,16 @@ export function buildPatientRows(cohort: CohortImport): PatientRowData[] {
     reviewedBy: p.reviewedBy,
     reviewedAt: p.reviewedAt,
     notes: p.notes,
+    flags: p.flags.map((f) => {
+      const criterion = criterionMap.get(f.criterionId);
+      return {
+        criterionId: f.criterionId,
+        criterionName: criterion?.name ?? f.criterionId,
+        criterionType: criterion?.type ?? 'inclusion',
+        value: f.value,
+        override: f.override,
+      };
+    }),
   }));
 }
 

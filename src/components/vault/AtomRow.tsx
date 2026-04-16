@@ -10,6 +10,7 @@ const STATUS_STYLES: Record<AtomStatus, { dot: string; label: string; tone: stri
   'auto-validated': { dot: 'bg-emerald-500', label: 'Auto-validated', tone: 'text-emerald-600' },
   'needs-config':   { dot: 'bg-amber-500',   label: 'Needs config',   tone: 'text-amber-600' },
   'in-progress':    { dot: 'bg-blue-500',     label: 'In progress',   tone: 'text-blue-600' },
+  'validated':      { dot: 'bg-emerald-500', label: 'Validated',      tone: 'text-emerald-600' },
 };
 
 /* ─── MiniBar ─── */
@@ -159,20 +160,13 @@ export function AtomRow({
       {expanded && (
         <div className="border-t border-inherit px-4 py-3 space-y-3">
           {/* Metadata strip */}
-          <div className="font-mono text-[11px] text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
-            <span>{row.label}</span>
-            <span aria-hidden="true">·</span>
-            <span className="italic">{row.category}</span>
-            <span aria-hidden="true">·</span>
-            <span
-              className={cn(
-                'font-semibold',
-                isUnstructured ? 'text-amber-600' : 'text-blue-600',
-              )}
-            >
-              {isUnstructured ? 'Unstructured' : 'Structured'}
-            </span>
-          </div>
+          {(row.conceptLabel || row.operator) && (
+            <div className="font-mono text-[11px] text-muted-foreground bg-muted/50 rounded px-2 py-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+              {row.conceptLabel && <span>concept: <span className="text-foreground">{row.conceptLabel}</span></span>}
+              {row.operator && <span>op: <span className="text-foreground">{row.operator}</span></span>}
+              {row.polarity && <span>polarity: <span className="text-foreground">{row.polarity}</span></span>}
+            </div>
+          )}
 
           {/* Patient split detail — unstructured only */}
           {isUnstructured && (

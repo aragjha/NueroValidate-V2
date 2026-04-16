@@ -9,17 +9,26 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  addReviewItems as apiAddReviewItems,
   assignPatients,
   createClient as apiCreateClient,
+  createCohortImport as apiCreateCohortImport,
   createProject,
+  createWorkflow as apiCreateWorkflow,
+  createWorkflowRun as apiCreateWorkflowRun,
   deleteProject,
+  deleteWorkflow as apiDeleteWorkflow,
   duplicateProject,
   fetchAppData,
+  linkCohortToProject as apiLinkCohortToProject,
   toggleFlag,
+  updateCohortPatientEligibility as apiUpdateCohortPatientEligibility,
+  updateCohortPatientFlag as apiUpdateCohortPatientFlag,
   updateComment,
   updateDecision,
+  updateWorkflow as apiUpdateWorkflow,
 } from '@/mock/neuroApi';
-import type { AuditEntry, Client, Criterion, LogEntry, Notification, Project, ReviewItem, Role, RunConfig, Theme } from '@/types';
+import type { AuditEntry, Client, CohortImport, Criterion, CustomAgent, LogEntry, Notification, Project, ReviewItem, Role, RunConfig, Theme, Workflow, WorkflowRun } from '@/types';
 
 type AppContextValue = {
   loading: boolean;
@@ -35,6 +44,10 @@ type AppContextValue = {
   audit: AuditEntry[];
   logs: LogEntry[];
   notifications: Notification[];
+  workflows: Workflow[];
+  workflowRuns: WorkflowRun[];
+  customAgents: CustomAgent[];
+  cohortImports: CohortImport[];
   setTheme: (theme: Theme) => void;
   setRole: (role: Role) => void;
   setCurrentUser: (user: string) => void;
@@ -52,6 +65,18 @@ type AppContextValue = {
   editComment: (encounterId: string, commentId: string, newText: string) => Promise<void>;
   toggleItemFlag: (encounterId: string) => Promise<void>;
   markNotifRead: (id: string) => void;
+  addWorkflow: (workflow: Workflow) => Promise<void>;
+  removeWorkflow: (workflowId: string) => Promise<void>;
+  updateWorkflow: (workflow: Workflow) => Promise<void>;
+  addWorkflowRun: (run: WorkflowRun) => Promise<void>;
+  addCustomAgent: (agent: CustomAgent) => void;
+  removeCustomAgent: (agentId: string) => void;
+  addReviewItems: (items: ReviewItem[]) => Promise<void>;
+  addCohortImport: (cohort: CohortImport) => Promise<void>;
+  linkCohortToProject: (cohortId: string, projectId: string) => Promise<void>;
+  updatePatientFlag: (cohortId: string, patientId: string, criterionId: string, override: boolean, reason: string) => Promise<void>;
+  updatePatientEligibility: (cohortId: string, patientId: string, eligible: boolean, notes?: string) => Promise<void>;
+  addRun: (run: RunConfig) => void;
   refresh: () => Promise<void>;
 };
 
@@ -72,6 +97,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
+  const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]);
+  const [cohortImports, setCohortImports] = useState<CohortImport[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -84,6 +113,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAudit(data.audit);
     setLogs(data.logs);
     setNotifications(data.notifications);
+    setWorkflows(data.workflows);
+    setWorkflowRuns(data.workflowRuns);
+    setCohortImports(data.cohortImports);
     setLoading(false);
   }, []);
 
@@ -142,12 +174,86 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
 
+  const addWorkflow = useCallback(async (workflow: Workflow) => {
+    await apiCreateWorkflow(workflow);
+    setWorkflows((prev) => [workflow, ...prev]);
+  }, []);
+
+  const removeWorkflow = useCallback(async (workflowId: string) => {
+    await apiDeleteWorkflow(workflowId);
+    setWorkflows((prev) => prev.filter((w) => w.id !== workflowId));
+  }, []);
+
+  const updateWorkflow = useCallback(async (workflow: Workflow) => {
+    await apiUpdateWorkflow(workflow);
+    setWorkflows((prev) => prev.map((w) => w.id === workflow.id ? workflow : w));
+  }, []);
+
+  const addWorkflowRun = useCallback(async (run: WorkflowRun) => {
+    await apiCreateWorkflowRun(run);
+    setWorkflowRuns((prev) => [run, ...prev]);
+  }, []);
+
+  const addCustomAgent = useCallback((agent: CustomAgent) => {
+    setCustomAgents((prev) => [agent, ...prev]);
+  }, []);
+
+  const removeCustomAgent = useCallback((agentId: string) => {
+    setCustomAgents((prev) => prev.filter((a) => a.id !== agentId));
+  }, []);
+
+  const addReviewItems = useCallback(async (items: ReviewItem[]) => {
+    await apiAddReviewItems(items);
+    setReviewItems((prev) => [...items, ...prev]);
+  }, []);
+
+  const addCohortImport = useCallback(async (cohort: CohortImport) => {
+    await apiCreateCohortImport(cohort);
+    setCohortImports((prev) => [cohort, ...prev]);
+  }, []);
+
+  const linkCohortToProjectFn = useCallback(async (cohortId: string, projectId: string) => {
+    await apiLinkCohortToProject(cohortId, projectId);
+    setCohortImports((prev) => prev.map((c) => c.id === cohortId ? { ...c, status: 'Linked' as const, linkedProjectId: projectId } : c));
+  }, []);
+
+  const updatePatientFlag = useCallback(async (cohortId: string, patientId: string, criterionId: string, override: boolean, reason: string) => {
+    await apiUpdateCohortPatientFlag({ cohortId, patientId, criterionId, override, reason, user: currentUser });
+    setCohortImports((prev) => prev.map((c) => {
+      if (c.id !== cohortId) return c;
+      const patients = c.patients.map((p) => {
+        if (p.patientId !== patientId) return p;
+        const flags = p.flags.map((f) => f.criterionId === criterionId ? { ...f, override, overrideBy: currentUser, overrideReason: reason, overrideAt: new Date().toISOString() } : f);
+        const eligible = c.criteria.every((cr) => {
+          const flag = flags.find((fl) => fl.criterionId === cr.id);
+          const effective = flag?.override !== undefined ? flag.override : flag?.value;
+          return cr.type === 'inclusion' ? effective === true : effective === false;
+        });
+        return { ...p, flags, eligible };
+      });
+      const eligibleCount = patients.filter((p) => p.eligible).length;
+      return { ...c, patients, metadata: { ...c.metadata, eligibleCount, ineligibleCount: patients.length - eligibleCount } };
+    }));
+  }, [currentUser]);
+
+  const updatePatientEligibility = useCallback(async (cohortId: string, patientId: string, eligible: boolean, notes?: string) => {
+    await apiUpdateCohortPatientEligibility({ cohortId, patientId, eligible, user: currentUser, notes });
+    setCohortImports((prev) => prev.map((c) => {
+      if (c.id !== cohortId) return c;
+      return { ...c, patients: c.patients.map((p) => p.patientId === patientId ? { ...p, overrideEligible: eligible, reviewedBy: currentUser, reviewedAt: new Date().toISOString(), notes } : p) };
+    }));
+  }, [currentUser]);
+
+  const addRun = useCallback((run: RunConfig) => {
+    setRuns((prev) => [run, ...prev]);
+  }, []);
+
   const value = useMemo<AppContextValue>(
     () => ({
-      loading, theme, role, currentUser, users, clients, projects, reviewItems, criteria, runs, audit, logs, notifications,
-      setTheme, setRole, setCurrentUser, addClient, addProject, removeProject, dupProject, saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, refresh,
+      loading, theme, role, currentUser, users, clients, projects, reviewItems, criteria, runs, audit, logs, notifications, workflows, workflowRuns, customAgents, cohortImports,
+      setTheme, setRole, setCurrentUser, addClient, addProject, removeProject, dupProject, saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, addWorkflow, removeWorkflow, updateWorkflow, addWorkflowRun, addCustomAgent, removeCustomAgent, addReviewItems, addCohortImport, linkCohortToProject: linkCohortToProjectFn, updatePatientFlag, updatePatientEligibility, addRun, refresh,
     }),
-    [loading, theme, role, currentUser, clients, projects, reviewItems, criteria, runs, audit, logs, notifications, addClient, addProject, removeProject, dupProject, saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, refresh],
+    [loading, theme, role, currentUser, clients, projects, reviewItems, criteria, runs, audit, logs, notifications, workflows, workflowRuns, customAgents, cohortImports, addClient, addProject, removeProject, dupProject, saveAssignment, saveDecision, editComment, toggleItemFlag, markNotifRead, addWorkflow, removeWorkflow, updateWorkflow, addWorkflowRun, addCustomAgent, removeCustomAgent, addReviewItems, addCohortImport, linkCohortToProjectFn, updatePatientFlag, updatePatientEligibility, addRun, refresh],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

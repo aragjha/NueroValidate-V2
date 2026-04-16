@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
+import { ReviewSummary } from '@/components/ct/ReviewSummary';
+import type { ReviewRow } from '@/components/ct/ReviewSummary';
 import {
   buildCriterionRows,
   buildAtomRows,
@@ -86,7 +88,7 @@ const fmt = (n: number) => n.toLocaleString();
 export function CTOverviewPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const nav = useNavigate();
-  const { projects, cohortImports } = useAppContext();
+  const { projects, cohortImports, reviewItems } = useAppContext();
 
   const project = projects.find((p) => p.id === projectId);
   const cohort = cohortImports.find((c) => c.id === project?.cohortImportId);
@@ -139,6 +141,46 @@ export function CTOverviewPage() {
     ).length;
     return { worst, completed, total: criterionRows.length };
   }, [criterionRows]);
+
+  /* ── Review dashboard rows (one per criterion with unstructured atoms) ── */
+  const reviewRows = useMemo<ReviewRow[]>(() => {
+    if (!cohort?.criteriaResults) return [];
+
+    return criterionRows
+      .filter((cr) => cr.unstructuredAtoms.length > 0)
+      .map((cr) => {
+        const crResult = cohort.criteriaResults!.find((r) => r.criterion_id === cr.id);
+        if (!crResult) return null;
+
+        const patientsToReview = new Set<string>();
+        for (const atom of crResult.atoms) {
+          atom.patient_list_no_unstructured.forEach((id) => patientsToReview.add(id));
+          atom.patient_list_unknown.forEach((id) => patientsToReview.add(id));
+        }
+
+        const total = patientsToReview.size;
+        if (total === 0) return null;
+
+        const crReviews = reviewItems.filter(
+          (ri) => ri.projectId === projectId && patientsToReview.has(ri.patientId),
+        );
+
+        const reviewed = crReviews.filter((ri) => ri.decision !== undefined).length;
+        const trueCount = crReviews.filter((ri) => ri.decision === 'True').length;
+        const falseCount = crReviews.filter((ri) => ri.decision === 'False').length;
+        const unclearCount = crReviews.filter((ri) => ri.decision === 'Unclear').length;
+
+        return {
+          label: cr.name,
+          reviewed,
+          total,
+          trueCount,
+          falseCount,
+          unclearCount,
+        } satisfies ReviewRow;
+      })
+      .filter((r): r is ReviewRow => r !== null);
+  }, [cohort, criterionRows, reviewItems, projectId]);
 
   /* ── Category list (ordered) ── */
   const categories = useMemo(() => {
@@ -274,6 +316,11 @@ export function CTOverviewPage() {
           )}
         </div>
       </div>
+
+      {/* ── Review Dashboard (only when unstructured atoms exist) ── */}
+      {reviewRows.length > 0 && (
+        <ReviewSummary title="Review Dashboard" rows={reviewRows} />
+      )}
 
       {/* ── Filter Bar ── */}
       <div className="rounded-xl border bg-card px-5 py-4 space-y-3">

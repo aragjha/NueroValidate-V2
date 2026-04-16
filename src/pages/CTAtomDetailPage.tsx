@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
@@ -7,6 +7,8 @@ import { AtomMetadataHeader } from '@/components/ct/AtomMetadataHeader';
 import { PromptConfigTab } from '@/components/ct/PromptConfigTab';
 import { RunHistoryTab } from '@/components/ct/RunHistoryTab';
 import { PatientReviewTab } from '@/components/ct/PatientReviewTab';
+import { RunConfigModal } from '@/components/ct/RunConfigModal';
+import type { RunConfig } from '@/types';
 
 /* ─── Tab types ─── */
 
@@ -17,7 +19,7 @@ type ActiveTab = 'prompt' | 'runs' | 'review';
 export function CTAtomDetailPage() {
   const nav = useNavigate();
   const { projectId, atomId } = useParams<{ projectId: string; atomId: string }>();
-  const { projects, cohortImports, criteria, runs, reviewItems, saveDecision } = useAppContext();
+  const { projects, cohortImports, criteria, runs, reviewItems, saveDecision, addRun } = useAppContext();
 
   /* ── Resolve project + cohort ── */
   const project = projects.find((p) => p.id === projectId);
@@ -38,6 +40,7 @@ export function CTAtomDetailPage() {
 
   /* ── Local prompt/config state ── */
   const [activeTab, setActiveTab] = useState<ActiveTab>('prompt');
+  const [runModalOpen, setRunModalOpen] = useState(false);
   const [keywords, setKeywords] = useState<string[]>(() => {
     if (atom?.keywords && atom.keywords.length > 0) return atom.keywords;
     return criterionConfig?.keywords ?? [];
@@ -124,10 +127,36 @@ export function CTAtomDetailPage() {
     setKeywords((prev) => prev.filter((k) => k !== kw));
   }
 
-  /* ── onRun stub ── */
+  /* ── onRun: open the modal ── */
   function handleRun() {
-    alert('Run started! (Run creation will be implemented in Sub-project C)');
+    setRunModalOpen(true);
   }
+
+  /* ── onStartRun: create RunConfig, add to context, switch tab ── */
+  const handleStartRun = useCallback(
+    (config: { scope: 'all' | 'patients' | 'encounters'; ids: string[]; sampleSize: number; fullRun: boolean }) => {
+      const newRun: RunConfig = {
+        id: `run-${Date.now()}`,
+        runId: `run-${Date.now()}`,
+        criterionId: atom?.parentCriterionId ?? '',
+        overrideModels: false,
+        overridePrompts: false,
+        overrideKeywords: false,
+        sampleSize: config.sampleSize,
+        patientIds: config.ids.join(','),
+        reuseSample: false,
+        fullRun: config.fullRun,
+        status: 'Queued',
+        extractionCount: 0,
+        totalCount: config.sampleSize,
+        fileName: '',
+      };
+      addRun(newRun);
+      setRunModalOpen(false);
+      setActiveTab('runs');
+    },
+    [atom, addRun],
+  );
 
   /* ── onDecision handler ── */
   function handleDecision(encounterId: string, decision: 'True' | 'False' | 'Unclear', reason: string) {
@@ -154,6 +183,18 @@ export function CTAtomDetailPage() {
         projectName={project.name}
         reviewedCount={reviewedCount}
         totalToReview={patientsToReview.length}
+      />
+
+      {/* ── RunConfigModal ── */}
+      <RunConfigModal
+        open={runModalOpen}
+        onClose={() => setRunModalOpen(false)}
+        onStartRun={handleStartRun}
+        atomLabel={atom.label}
+        keywordCount={keywords.length}
+        model={model}
+        allPatientIds={cohort.patients.map((p) => p.patientId)}
+        totalPatientCount={cohort.patients.length || cohort.metadata.totalPatients}
       />
 
       {/* ── 2. Structured atoms: no tabs, banner already shown in header ── */}

@@ -37,9 +37,11 @@ function MiniBar({ yes, no, unknown }: { yes: number; no: number; unknown: numbe
 export function AtomRow({
   row,
   defaultExpanded = false,
+  onClick,
 }: {
   row: AtomRowData;
   defaultExpanded?: boolean;
+  onClick?: (row: AtomRowData) => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -69,11 +71,11 @@ export function AtomRow({
       <button
         type="button"
         aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => onClick ? onClick(row) : setExpanded((v) => !v)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            setExpanded((v) => !v);
+            onClick ? onClick(row) : setExpanded((v) => !v);
           }
         }}
         className="w-full cursor-pointer select-none px-3 pt-2.5 pb-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"

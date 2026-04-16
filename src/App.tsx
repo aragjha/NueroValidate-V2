@@ -42,6 +42,7 @@ import { CTOverviewPage } from '@/pages/CTOverviewPage';
 import { CTCriterionDetailPage } from '@/pages/CTCriterionDetailPage';
 import CTFunnelPage from '@/pages/CTFunnelPage';
 import CTMatrixPage from '@/pages/CTMatrixPage';
+import CTAtomDetailPage from '@/pages/CTAtomDetailPage';
 
 function AppRoutes() {
   const { loading } = useAppContext();
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/projects/:projectId/review" element={<ReviewPage />} />
         <Route path="/projects/:projectId/ct-overview" element={<CTOverviewPage />} />
         <Route path="/projects/:projectId/ct-criteria/:criterionId" element={<CTCriterionDetailPage />} />
+        <Route path="/projects/:projectId/ct-atom/:atomId" element={<CTAtomDetailPage />} />
         <Route path="/projects/:projectId/ct-funnel" element={<CTFunnelPage />} />
         <Route path="/projects/:projectId/ct-matrix" element={<CTMatrixPage />} />
         <Route path="/vault" element={<DataVaultPage />} />

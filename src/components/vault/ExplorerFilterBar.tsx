@@ -29,11 +29,9 @@ const CRITERIA_PILLS: PillOption[] = [
   { label: 'Unstructured', value: 'unstructured' },
 ];
 
-// 'mixed' is a ViewMode we need — but it's not in the shared ViewMode union yet.
-// We cast it so the pill works and the parent can handle the value.
-const CRITERIA_PILLS_WITH_MIXED = [
+const CRITERIA_PILLS_WITH_MIXED: PillOption[] = [
   ...CRITERIA_PILLS,
-  { label: 'Mixed', value: 'mixed' as ViewMode },
+  { label: 'Mixed', value: 'mixed' },
 ];
 
 const ATOM_PILLS: PillOption[] = [
@@ -46,7 +44,7 @@ const PATIENT_PILLS: PillOption[] = [
   { label: 'All', value: 'all' },
   { label: 'Eligible', value: 'eligible' },
   { label: 'Ineligible', value: 'ineligible' },
-  { label: 'Needs review', value: 'needsReview' as ViewMode },
+  { label: 'Needs review', value: 'needs-review' },
 ];
 
 /* ─── Default view per tab ─── */

@@ -38,8 +38,8 @@ export function ExplorerHeader({
   const navigate = useNavigate();
 
   /* Derived stats */
-  const structuredCount = atoms.filter((a) => a.dataSource === 'structured').length;
-  const unstructuredCount = atoms.filter((a) => a.dataSource === 'unstructured').length;
+  const structuredCrCount = criteria.filter((c) => c.mixedness === 'all-structured').length;
+  const unstructuredCrCount = criteria.length - structuredCrCount;
 
   const validatedAtoms = atoms.filter((a) => a.status === 'auto-validated').length;
   const inProgressAtoms = atoms.filter((a) => a.status === 'in-progress').length;
@@ -125,15 +125,15 @@ export function ExplorerHeader({
         <span>
           <span className="font-semibold text-foreground">{criteria.length}</span>{' '}
           Criteria
-          {(structuredCount > 0 || unstructuredCount > 0) && (
+          {(structuredCrCount > 0 || unstructuredCrCount > 0) && (
             <span className="ml-1">
               (
               <span className="text-blue-600 dark:text-blue-400">
-                {structuredCount} str
+                {structuredCrCount} str
               </span>{' '}
               /{' '}
               <span className="text-amber-600 dark:text-amber-400">
-                {unstructuredCount} unstr
+                {unstructuredCrCount} unstr
               </span>
               )
             </span>

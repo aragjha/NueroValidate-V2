@@ -322,7 +322,9 @@ export function applyAtomFilters(rows: AtomRowData[], f: FilterState): AtomRowDa
       (a) =>
         a.label.toLowerCase().includes(q) ||
         a.parentCriterionName.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q),
+        a.parentCriterionId.toLowerCase().includes(q) ||
+        a.category.toLowerCase().includes(q) ||
+        (a.conceptLabel ?? '').toLowerCase().includes(q),
     );
   }
 
@@ -350,6 +352,8 @@ export function applyCriterionFilters(rows: CriterionRowData[], f: FilterState):
     result = result.filter((c) => c.mixedness === 'all-structured');
   } else if (f.view === 'unstructured') {
     result = result.filter((c) => c.unstructuredAtoms.length > 0);
+  } else if (f.view === 'mixed') {
+    result = result.filter((c) => c.mixedness === 'mixed');
   }
 
   // Category filter
@@ -366,7 +370,7 @@ export function applyCriterionFilters(rows: CriterionRowData[], f: FilterState):
   if (f.q) {
     const q = f.q.toLowerCase();
     result = result.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q),
+      (c) => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q) || c.category.toLowerCase().includes(q),
     );
   }
 
@@ -412,6 +416,8 @@ export function applyPatientFilters(rows: PatientRowData[], f: FilterState): Pat
     result = result.filter((p) => p.eligible || p.overrideEligible);
   } else if (f.view === 'ineligible') {
     result = result.filter((p) => !p.eligible && !p.overrideEligible);
+  } else if (f.view === 'needs-review') {
+    result = result.filter((p) => !p.reviewedBy);
   }
 
   if (f.q) {

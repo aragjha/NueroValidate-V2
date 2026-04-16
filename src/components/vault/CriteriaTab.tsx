@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { AtomRow } from './AtomRow';
@@ -143,6 +144,7 @@ function CriterionRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const nav = useNavigate();
   const totalAtoms = criterion.atoms.length;
 
   return (
@@ -244,6 +246,14 @@ function CriterionRow({
           {criterion.atoms.length === 0 && (
             <p className="text-xs text-muted-foreground py-2">No atoms for this criterion.</p>
           )}
+          <div className="pt-2 border-t flex justify-end">
+            <button
+              onClick={(e) => { e.stopPropagation(); nav(`/projects/new?flow=ct&criterion=${criterion.id}`); }}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+            >
+              Go to criterion workspace <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
         </div>
       )}
     </div>

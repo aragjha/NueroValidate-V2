@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
 import { buildCriterionRows } from '@/components/vault/shared';
@@ -5,6 +6,8 @@ import type { AtomRowData } from '@/components/vault/shared';
 import { AtomRow } from '@/components/vault/AtomRow';
 import { StatusRollup, worstStatus } from '@/components/ct/StatusRollup';
 import type { AtomStatus } from '@/components/ct/StatusRollup';
+import { ReviewSummary } from '@/components/ct/ReviewSummary';
+import type { ReviewRow } from '@/components/ct/ReviewSummary';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
 
@@ -13,7 +16,7 @@ import { ArrowLeft } from 'lucide-react';
 export function CTCriterionDetailPage() {
   const nav = useNavigate();
   const { projectId, criterionId } = useParams<{ projectId: string; criterionId: string }>();
-  const { projects, cohortImports } = useAppContext();
+  const { projects, cohortImports, reviewItems } = useAppContext();
 
   /* ── Resolve project + cohort ── */
   const project = projects.find((p) => p.id === projectId);
@@ -75,6 +78,42 @@ export function CTCriterionDetailPage() {
   const cohortCriterion = cohort.criteria.find((c) => c.id === criterionId);
   const description = cohortCriterion?.description ?? '';
   const atomLogic = cohortCriterion?.atomLogic ?? 'AND';
+
+  /* ── Review summary rows (one per unstructured atom) ── */
+  const reviewRows = useMemo<ReviewRow[]>(() => {
+    if (!cohort?.criteriaResults || unstructuredAtoms.length === 0) return [];
+
+    const crResult = cohort.criteriaResults.find((cr) => cr.criterion_id === criterionId);
+    if (!crResult) return [];
+
+    return crResult.atoms
+      .filter((atom) => atom.patient_list_no_unstructured.length > 0 || atom.patient_list_unknown.length > 0)
+      .map((atom) => {
+        const patientsToReview = new Set([
+          ...atom.patient_list_no_unstructured,
+          ...atom.patient_list_unknown,
+        ]);
+        const total = patientsToReview.size;
+
+        const atomReviews = reviewItems.filter(
+          (ri) => ri.projectId === projectId && patientsToReview.has(ri.patientId),
+        );
+
+        const reviewed = atomReviews.filter((ri) => ri.decision !== undefined).length;
+        const trueCount = atomReviews.filter((ri) => ri.decision === 'True').length;
+        const falseCount = atomReviews.filter((ri) => ri.decision === 'False').length;
+        const unclearCount = atomReviews.filter((ri) => ri.decision === 'Unclear').length;
+
+        return {
+          label: atom.metadata.concept_label,
+          reviewed,
+          total,
+          trueCount,
+          falseCount,
+          unclearCount,
+        };
+      });
+  }, [cohort, criterionId, unstructuredAtoms.length, reviewItems, projectId]);
 
   /* ── Atom click handler ── */
   function handleAtomClick(row: AtomRowData) {
@@ -155,6 +194,11 @@ export function CTCriterionDetailPage() {
           </span>
         </div>
       </div>
+
+      {/* ── Review Summary (only when unstructured atoms exist) ── */}
+      {unstructuredAtoms.length > 0 && (
+        <ReviewSummary title="Review Summary" rows={reviewRows} />
+      )}
 
       {/* ── Atom sections ── */}
       <div className="space-y-6">

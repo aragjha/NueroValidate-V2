@@ -1,0 +1,252 @@
+<!--
+  NeuroTerminal — Batch Run Success Email
+  ----------------------------------------
+  Syntax: Handlebars / Mustache ({{variable}}). Works with SendGrid, Postmark,
+  Mailchimp Transactional, AWS SES templates, or any templating layer you use.
+  Strip this comment block in production (or keep for source-of-truth docs).
+
+  REQUIRED VARIABLES
+  ------------------
+  Run metadata
+    {{run_id}}                e.g. "RUN-2026-04-23-8F2A"
+    {{project_name}}          e.g. "ABBV-318 · Phase II RWE"
+    {{cohort_name}}           e.g. "UC severe · 2021–2024"
+    {{completed_at}}          e.g. "Apr 23, 2026 · 6:18 AM" (user-local tz, pre-formatted server-side)
+    {{duration}}              e.g. "7h 36m"
+
+  Cost
+    {{cost_original}}         e.g. "$184.20"  (pre-discount estimate)
+    {{cost_final}}            e.g. "$92.10"   (charged amount)
+    {{discount_label}}        e.g. "50% off"  (omit the surrounding span if no discount)
+
+  Patient breakdown (counts pre-formatted with thousands separators)
+    {{patients_total}}        e.g. "1,842"
+    {{patients_eligible}}     e.g. "1,204"
+    {{patients_ineligible}}   e.g. "450"
+    {{patients_failed}}       e.g. "188"
+
+  Encounter breakdown
+    {{encounters_total}}      e.g. "11,284"
+    {{encounters_eligible}}   e.g. "7,382"
+    {{encounters_ineligible}} e.g. "2,756"
+    {{encounters_failed}}     e.g. "1,146"
+
+  Criteria
+    {{criteria_total}}        e.g. "12"
+
+  URLs (absolute, https)
+    {{project_url}}           primary CTA — deep link to the project workspace
+    {{run_details_url}}       secondary link — run summary page
+    {{notifications_url}}     notification preferences
+    {{docs_url}}              "About batch processing" doc
+
+  Suggested subject line
+    Your batch run is ready · {{project_name}}
+
+  Suggested preheader (already in hidden div below — keep in sync if changed)
+    {{patients_total}} patients · {{criteria_total}} criteria · {{run_id}}
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>Your batch run is ready</title>
+  <!--[if mso]>
+  <style>body,table,td{font-family:Arial,Helvetica,sans-serif!important}</style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#0f172a;">
+  <!-- Preheader -->
+  <div style="display:none;font-size:1px;color:#f4f6fb;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    Your batch run is ready. {{patients_total}} patients · {{criteria_total}} criteria · {{run_id}}
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6fb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06),0 8px 24px rgba(15,23,42,0.04);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="background-color:#3b6fe0;width:36px;height:36px;border-radius:10px;text-align:center;vertical-align:middle;font-weight:700;color:#ffffff;font-size:16px;line-height:36px;">N</td>
+                        <td style="width:12px;"></td>
+                        <td style="color:#ffffff;font-size:16px;font-weight:600;letter-spacing:-0.01em;vertical-align:middle;">NeuroTerminal</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:rgba(16,185,129,0.15);color:#6ee7b7;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:5px 10px;border-radius:999px;">Batch</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Status icon + heading -->
+          <tr>
+            <td style="padding:40px 32px 8px 32px;text-align:center;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  <td style="background-color:#ecfdf5;width:56px;height:56px;border-radius:999px;text-align:center;vertical-align:middle;">
+                    <span style="color:#059669;font-size:28px;line-height:56px;font-weight:700;">&#10003;</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 32px 0 32px;text-align:center;">
+              <h1 style="margin:0;font-size:24px;line-height:1.25;font-weight:700;color:#0f172a;letter-spacing:-0.02em;">Your batch run is ready</h1>
+              <p style="margin:10px 0 0 0;font-size:15px;line-height:1.55;color:#475569;">
+                We've finished processing your run. {{patients_total}} patients are ready for review.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Metric tiles -->
+          <tr>
+            <td style="padding:28px 28px 8px 28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="50%" style="padding:4px;vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                      <tr><td style="padding:14px 14px 2px 14px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Patients</td></tr>
+                      <tr><td style="padding:0 14px 10px 14px;font-size:22px;font-weight:700;color:#0f172a;line-height:1.1;">{{patients_total}}</td></tr>
+                      <tr><td style="padding:0 14px 14px 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td style="padding:3px 0;font-size:12px;color:#475569;"><span style="display:inline-block;width:6px;height:6px;background-color:#10b981;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Eligible</td>
+                            <td align="right" style="padding:3px 0;font-size:12px;color:#0f172a;font-weight:600;">{{patients_eligible}}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:3px 0;font-size:12px;color:#475569;"><span style="display:inline-block;width:6px;height:6px;background-color:#94a3b8;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Ineligible</td>
+                            <td align="right" style="padding:3px 0;font-size:12px;color:#0f172a;font-weight:600;">{{patients_ineligible}}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:3px 0;font-size:12px;color:#475569;"><span style="display:inline-block;width:6px;height:6px;background-color:#f59e0b;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Failed</td>
+                            <td align="right" style="padding:3px 0;font-size:12px;color:#0f172a;font-weight:600;">{{patients_failed}}</td>
+                          </tr>
+                        </table>
+                      </td></tr>
+                    </table>
+                  </td>
+                  <td width="50%" style="padding:4px;vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                      <tr><td style="padding:14px 14px 2px 14px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Encounters</td></tr>
+                      <tr><td style="padding:0 14px 10px 14px;font-size:22px;font-weight:700;color:#0f172a;line-height:1.1;">{{encounters_total}}</td></tr>
+                      <tr><td style="padding:0 14px 14px 14px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td style="padding:3px 0;font-size:12px;color:#475569;"><span style="display:inline-block;width:6px;height:6px;background-color:#10b981;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Eligible</td>
+                            <td align="right" style="padding:3px 0;font-size:12px;color:#0f172a;font-weight:600;">{{encounters_eligible}}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:3px 0;font-size:12px;color:#475569;"><span style="display:inline-block;width:6px;height:6px;background-color:#94a3b8;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Ineligible</td>
+                            <td align="right" style="padding:3px 0;font-size:12px;color:#0f172a;font-weight:600;">{{encounters_ineligible}}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:3px 0;font-size:12px;color:#475569;"><span style="display:inline-block;width:6px;height:6px;background-color:#f59e0b;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Failed</td>
+                            <td align="right" style="padding:3px 0;font-size:12px;color:#0f172a;font-weight:600;">{{encounters_failed}}</td>
+                          </tr>
+                        </table>
+                      </td></tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:4px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                      <tr>
+                        <td style="padding:14px 16px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Criteria</td>
+                        <td align="right" style="padding:14px 16px;font-size:20px;font-weight:700;color:#0f172a;line-height:1.1;">{{criteria_total}}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Run details -->
+          <tr>
+            <td style="padding:20px 32px 4px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;">
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b;">Run ID</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:600;text-align:right;font-family:'SF Mono',Menlo,Consolas,monospace;">{{run_id}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b;">Project</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:600;text-align:right;">{{project_name}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b;">Cohort</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:600;text-align:right;">{{cohort_name}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b;">Completed</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:600;text-align:right;">{{completed_at}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b;">Duration</td>
+                  <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:600;text-align:right;">{{duration}}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 18px;font-size:13px;color:#64748b;">Cost</td>
+                  <td style="padding:14px 18px;font-size:13px;color:#0f172a;font-weight:600;text-align:right;">
+                    <span style="color:#94a3b8;text-decoration:line-through;font-weight:500;margin-right:6px;">{{cost_original}}</span>
+                    {{cost_final}}
+                    <span style="display:inline-block;background-color:#ecfdf5;color:#059669;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;margin-left:8px;">{{discount_label}}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:28px 32px 8px 32px;text-align:center;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  <td style="background-color:#3b6fe0;border-radius:10px;">
+                    <a href="{{project_url}}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:-0.01em;">Take me to the project &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 32px 32px 32px;text-align:center;">
+              <a href="{{run_details_url}}" style="font-size:13px;color:#64748b;text-decoration:none;">View run details</a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 32px;background-color:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#64748b;line-height:1.5;">
+                You're receiving this because you kicked off a batch run in NeuroTerminal.<br />
+                <a href="{{notifications_url}}" style="color:#3b6fe0;text-decoration:none;">Notification settings</a>
+                &nbsp;·&nbsp;
+                <a href="{{docs_url}}" style="color:#3b6fe0;text-decoration:none;">About batch processing</a>
+              </p>
+              <p style="margin:12px 0 0 0;font-size:11px;color:#94a3b8;">NeuroTerminal · Clinical evidence, automated.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

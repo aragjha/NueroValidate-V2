@@ -22,3 +22,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local workflow artifacts
+.superpowers/
+Screenshots/
+__pathtest__.gif
+*.csv
+/Screenshot *.png
+/NDAI-logo_60*.png
+/CT flow/
+docs/superpowers/reviews/

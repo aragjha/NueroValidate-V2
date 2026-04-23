@@ -5,17 +5,15 @@ import { buildCriterionRows } from '@/components/vault/shared';
 import type { CriterionRowData } from '@/components/vault/shared';
 import type { CohortImport, CohortCriterionResult, CohortAtomResult } from '@/types';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AskMeAnything } from '@/components/AskMeAnything';
 import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
   Download,
   FlaskConical,
-  MessageSquare,
   RotateCcw,
-  Send,
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
@@ -31,8 +29,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   Clinical: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
   Drug: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
 };
-
-type ChatMsg = { role: 'user' | 'bot'; text: string };
 
 /* ─── Enhanced funnel types ─── */
 type FunnelAtomDetail = {
@@ -227,88 +223,6 @@ function computeFlagFunnel(
   return steps;
 }
 
-/* ─── Enhanced chat responder ─── */
-function chatRespond(
-  msg: string,
-  finalCount: number,
-  startingPop: number,
-  steps: FunnelStep[],
-  enabledCount: number,
-  totalCriteria: number,
-): string {
-  const lower = msg.toLowerCase();
-  const pct = startingPop > 0 ? ((finalCount / startingPop) * 100).toFixed(2) : '0';
-  const criteriaSteps = steps.filter((s) => s.criterionId !== '__start__');
-
-  // 1. Count / total
-  if (/how many|count|total/.test(lower)) {
-    return `The final eligible cohort contains ${finalCount.toLocaleString()} patients out of ${startingPop.toLocaleString()} starting population (${pct}% retention).`;
-  }
-
-  // 2. Biggest drop / most impact
-  if (/most impact|biggest drop/.test(lower)) {
-    if (criteriaSteps.length === 0) return 'No criteria are currently enabled.';
-    const biggest = criteriaSteps.reduce((a, b) => (b.dropped > a.dropped ? b : a), criteriaSteps[0]);
-    return `The criterion "${biggest.label}" has the largest impact, reducing the cohort by ${biggest.dropped.toLocaleString()} patients (${biggest.dropPct.toFixed(1)}% drop at that step).`;
-  }
-
-  // 3. Smallest drop / least impact
-  if (/smallest drop|least impact/.test(lower)) {
-    if (criteriaSteps.length === 0) return 'No criteria are currently enabled.';
-    const smallest = criteriaSteps.reduce((a, b) => (b.dropped < a.dropped ? b : a), criteriaSteps[0]);
-    return smallest.dropped === 0
-      ? `The criterion "${smallest.label}" drops zero patients -- it has no impact on the cohort.`
-      : `The criterion "${smallest.label}" has the least impact, removing only ${smallest.dropped.toLocaleString()} patients (${smallest.dropPct.toFixed(1)}%).`;
-  }
-
-  // 4. Retention / rate / conversion
-  if (/retention|rate|conversion/.test(lower)) {
-    return `Overall retention rate: ${pct}% (${finalCount.toLocaleString()} of ${startingPop.toLocaleString()} patients survive all ${enabledCount} enabled criteria).`;
-  }
-
-  // 5. Summary / overview
-  if (/summary|overview/.test(lower)) {
-    const totalDropped = startingPop - finalCount;
-    const avgDropPct = criteriaSteps.length > 0
-      ? (criteriaSteps.reduce((sum, s) => sum + s.dropPct, 0) / criteriaSteps.length).toFixed(1)
-      : '0';
-    return `Starting from ${startingPop.toLocaleString()} patients, ${enabledCount} of ${totalCriteria} criteria are active. The funnel drops ${totalDropped.toLocaleString()} patients total (avg ${avgDropPct}% per step), yielding a final cohort of ${finalCount.toLocaleString()} (${pct}% retention).`;
-  }
-
-  // 6. Demographics
-  if (/demographics|gender|age/.test(lower)) {
-    return 'Demographics in the eligible cohort (mock): ~55% female, ~45% male. Mean age ~68 years (range 50-82). Top comorbidities: hypertension (42%), diabetes (28%).';
-  }
-
-  // 7. Criteria / enabled / active
-  if (/criteria|enabled|active/.test(lower)) {
-    if (criteriaSteps.length === 0) return `All ${totalCriteria} criteria are currently disabled.`;
-    const list = criteriaSteps.map((s) => `  - ${s.isExclusion ? '[EXC]' : '[INC]'} ${s.label} (drop: ${s.dropped.toLocaleString()})`).join('\n');
-    return `${enabledCount} of ${totalCriteria} criteria enabled:\n${list}`;
-  }
-
-  // 8. Atoms
-  if (/atoms/.test(lower)) {
-    const totalAtoms = criteriaSteps.reduce((sum, s) => sum + s.atoms.length, 0);
-    const structured = criteriaSteps.reduce((sum, s) => sum + s.atoms.filter((a) => a.dataSource === 'structured').length, 0);
-    const unstructured = totalAtoms - structured;
-    return `Across ${enabledCount} enabled criteria there are ${totalAtoms} atoms: ${structured} structured, ${unstructured} unstructured.`;
-  }
-
-  // 9. What if / remove / without
-  if (/what if|remove|without/.test(lower)) {
-    const match = criteriaSteps.find((s) => lower.includes(s.label.toLowerCase()));
-    if (match) {
-      const newFinal = finalCount + match.dropped;
-      return `If you disable "${match.label}", approximately ${match.dropped.toLocaleString()} patients would be recovered, bringing the estimated cohort to ~${newFinal.toLocaleString()} patients.`;
-    }
-    return 'Please mention a specific criterion name. For example: "What if I remove Age >= 18?"';
-  }
-
-  // 10. Fallback
-  return 'I can answer questions about your cohort. Try:\n  - "How many patients are eligible?"\n  - "Which criterion has the biggest drop?"\n  - "Give me a summary"\n  - "What if I remove [criterion name]?"\n  - "Show me the atoms"\n  - "What is the retention rate?"';
-}
-
 /* ─── CSV Export helper ─── */
 function exportCohortCSV(
   cohort: CohortImport,
@@ -489,21 +403,6 @@ export default function CTFunnelPage() {
     });
   }, []);
 
-  /* ─── Chat ─── */
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
-  const [chatInput, setChatInput] = useState('');
-
-  const sendChat = useCallback(() => {
-    const trimmed = chatInput.trim();
-    if (!trimmed) return;
-    setChatMessages((prev) => [
-      ...prev,
-      { role: 'user', text: trimmed },
-      { role: 'bot', text: chatRespond(trimmed, finalCount, startingPop, steps, enabledCount, totalCriteria) },
-    ]);
-    setChatInput('');
-  }, [chatInput, finalCount, startingPop, steps, enabledCount, totalCriteria]);
-
   /* ─── CSV Export ─── */
   const handleExport = useCallback(() => {
     if (!cohort || !project) return;
@@ -525,10 +424,10 @@ export default function CTFunnelPage() {
       <header className="flex items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(`/projects/${projectId}/criteria`)}
+            onClick={() => navigate(`/projects/${projectId}/ct-overview`)}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Criteria
+            <ArrowLeft className="h-4 w-4" /> Back to Project Home
           </button>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold">{project.name}</span>
@@ -715,56 +614,19 @@ export default function CTFunnelPage() {
               </p>
             </div>
 
-            {/* ─── Chatbot Section ─── */}
+            {/* ─── Ask Me Anything ─── */}
             <div className="mt-8">
-              <div className="flex items-center gap-2 mb-3">
-                <MessageSquare className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-bold">Ask about your cohort</h3>
-              </div>
-
-              <div className="rounded-xl border bg-card">
-                {/* Messages */}
-                <ScrollArea className="max-h-60 p-4">
-                  {chatMessages.length === 0 && (
-                    <p className="text-xs text-muted-foreground italic">
-                      Ask about patient counts, criteria impact, demographics, atoms, retention rate, or
-                      &quot;what if&quot; scenarios...
-                    </p>
-                  )}
-                  <div className="space-y-3">
-                    {chatMessages.map((m, idx) => (
-                      <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                            m.role === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          }`}
-                        >
-                          {m.text}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-
-                {/* Input */}
-                <div className="flex items-center gap-2 border-t px-4 py-3">
-                  <Input
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-                    placeholder="Type a question..."
-                    className="flex-1 text-sm"
-                  />
-                  <button
-                    onClick={sendChat}
-                    className="flex items-center justify-center rounded-lg bg-primary p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+              <AskMeAnything
+                context={{
+                  projectName: project.name,
+                  totalPatients: startingPop,
+                  eligibleCount: finalCount,
+                  ineligibleCount: Math.max(0, startingPop - finalCount),
+                  criteria: criterionRows,
+                  enabledCriterionIds: enabledIds,
+                  dropByCriterion: Object.fromEntries(steps.filter(s => s.criterionId !== '__start__').map(s => [s.criterionId, s.dropped])),
+                }}
+              />
             </div>
           </ScrollArea>
         </main>

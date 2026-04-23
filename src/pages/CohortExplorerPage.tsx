@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
+import { Badge } from '@/components/ui/badge';
 import { ExplorerHeader } from '@/components/vault/ExplorerHeader';
 import { ExplorerFilterBar } from '@/components/vault/ExplorerFilterBar';
 import { CriteriaTab } from '@/components/vault/CriteriaTab';
@@ -15,7 +16,6 @@ import {
   applyPatientFilters,
   parseFilters,
   serializeFilters,
-  DEFAULT_FILTERS,
   type FilterState,
 } from '@/components/vault/shared';
 
@@ -150,6 +150,40 @@ export default function CohortExplorerPage() {
       />
 
       {/* Tab content */}
+      {filters.tab === 'all' && (
+        <div className="space-y-6">
+          {/* Summary preview: Criteria list */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold">Criteria</h3>
+              <Badge variant="secondary" className="text-[10px]">{allCriterionRows.length}</Badge>
+            </div>
+            <CriteriaTab
+              criteria={allCriterionRows}
+              expandedId={filters.expanded}
+              onToggleExpand={handleToggleExpand}
+            />
+          </div>
+
+          {/* Summary preview: Atoms */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold">Atoms (grouped by criterion)</h3>
+              <Badge variant="secondary" className="text-[10px]">{allAtomRows.length}</Badge>
+            </div>
+            <AtomsTab atoms={allAtomRows} />
+          </div>
+
+          {/* Summary preview: Patients */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold">Patients</h3>
+              <Badge variant="secondary" className="text-[10px]">{allPatientRows.length}</Badge>
+            </div>
+            <PatientsTab patients={allPatientRows} criteria={allCriterionRows} />
+          </div>
+        </div>
+      )}
       {filters.tab === 'criteria' && (
         <CriteriaTab
           criteria={filteredCriteria}
@@ -158,7 +192,7 @@ export default function CohortExplorerPage() {
         />
       )}
       {filters.tab === 'atoms' && <AtomsTab atoms={filteredAtoms} />}
-      {filters.tab === 'patients' && <PatientsTab patients={filteredPatients} />}
+      {filters.tab === 'patients' && <PatientsTab patients={filteredPatients} criteria={allCriterionRows} />}
     </div>
   );
 }

@@ -12,15 +12,31 @@ import {
   BookOpen,
   ChevronRight,
   Clock,
+  DatabaseZap,
   Moon,
+  Play,
   Search,
   ShieldCheck,
+  Sparkles,
   Sun,
+  Wand2,
+  Workflow,
 } from 'lucide-react';
 
-const STEPS = ['Project', 'Criteria', 'Run', 'Review'] as const;
+const RWE_STEPS = ['Project', 'Criteria', 'Run', 'Review'] as const;
+const CT_STEPS = ['Project', 'Criteria', 'Atom Config', 'Review', 'Funnel'] as const;
 
-function activeStep(pathname: string) {
+function activeStep(pathname: string, isCT: boolean) {
+  if (isCT) {
+    if (pathname.includes('/ct-funnel')) return 4;    // funnel
+    if (pathname.includes('/ct-matrix')) return 3;    // matrix (review level)
+    if (pathname.includes('/ct-criteria/')) return 2; // atom detail page
+    if (pathname.includes('/ct-overview')) return 1;  // criteria list
+    if (pathname.includes('/review')) return 3;       // review
+    if (pathname.includes('/criteria')) return 2;     // prompt config (atom config)
+    if (pathname.includes('/new')) return 0;
+    return 0;
+  }
   if (pathname.includes('/review')) return 3;
   if (pathname.includes('/criteria')) return 2;
   if (pathname.includes('/new')) return 1;
@@ -34,13 +50,42 @@ export function AppLayout() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const {
-    theme, role, currentUser, users, notifications, logs, audit,
+    theme, role, currentUser, users, notifications, logs, audit, projects,
     setTheme, setRole, setCurrentUser, markNotifRead,
   } = useAppContext();
 
-  const step = activeStep(location.pathname);
+  const isHomePage = location.pathname === '/home';
   const isProjectsPage = location.pathname === '/projects';
+  const isProjectFlow = location.pathname.startsWith('/projects');
+  const isWorkflowsPage = location.pathname === '/workflows';
+  const isWorkflowFlow = location.pathname.startsWith('/workflows');
+  const isStudio = location.pathname === '/studio';
+  const isAgentRunner = location.pathname === '/agent-runner';
+  const isAgentBuilder = location.pathname === '/agent-builder';
+  const isGuide = location.pathname === '/guide';
+  const isVault = location.pathname === '/vault';
+  const isCTOverview = location.pathname.includes('/ct-overview');
+  const projectIdMatch = location.pathname.match(/\/projects\/([^/]+)/);
+  const currentProject = projectIdMatch ? projects.find((p) => p.id === projectIdMatch[1]) : null;
+  const isCTFlow = isCTOverview || currentProject?.flowType === 'ct';
+  const STEPS = isCTFlow ? CT_STEPS : RWE_STEPS;
+  const step = activeStep(location.pathname, isCTFlow);
+  const showProjectSteps = isProjectFlow && !isProjectsPage && !location.pathname.endsWith('/new');
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  /* Breadcrumb logic */
+  let breadcrumbLabel = '';
+  const isCTCriterionDetail = location.pathname.includes('/ct-criteria/');
+  if (isVault) breadcrumbLabel = 'DATA VAULT';
+  else if (isProjectFlow && !isProjectsPage) breadcrumbLabel = isCTFlow ? (isCTOverview ? 'CT CRITERIA' : isCTCriterionDetail ? 'ATOM DETAIL' : 'CT PROJECT') : 'CURRENT PROJECT';
+  else if (isWorkflowFlow && !isWorkflowsPage) {
+    if (location.pathname.endsWith('/new')) breadcrumbLabel = 'NEW WORKFLOW';
+    else if (location.pathname.endsWith('/generate')) breadcrumbLabel = 'AUTO-GENERATE';
+    else breadcrumbLabel = 'WORKFLOW DETAIL';
+  } else if (isStudio) breadcrumbLabel = 'AGENTIC STUDIO';
+  else if (isAgentRunner) breadcrumbLabel = 'AGENT RUNNER';
+  else if (isAgentBuilder) breadcrumbLabel = 'AGENT BUILDER';
+  else if (isGuide) breadcrumbLabel = 'GUIDE';
 
   function openDrawer(which: 'notif' | 'logs' | 'audit') {
     setNotifOpen(which === 'notif');
@@ -54,25 +99,25 @@ export function AppLayout() {
       <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-background/95 backdrop-blur-md">
         <div className="flex items-center gap-4 px-5">
           <button
-            onClick={() => navigate('/projects')}
+            onClick={() => navigate('/home')}
             className="flex items-center gap-2 cursor-pointer shrink-0"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <ShieldCheck className="h-4 w-4" />
             </div>
-            <span className="text-sm font-bold tracking-tight">NEUROVALIDATE</span>
+            <span className="text-sm font-bold tracking-tight">NEURO AUDIT</span>
           </button>
           <nav className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <button
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/home')}
               className="rounded px-1.5 py-0.5 text-primary hover:bg-primary/10 transition-colors cursor-pointer"
             >
               HOME
             </button>
-            {!isProjectsPage && (
+            {breadcrumbLabel && (
               <>
                 <ChevronRight className="h-3 w-3" />
-                <span className="text-foreground">CURRENT PROJECT</span>
+                <span className="text-foreground">{breadcrumbLabel}</span>
               </>
             )}
           </nav>
@@ -82,7 +127,7 @@ export function AppLayout() {
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search patients, protocols, neurology criteria..."
+              placeholder="Search patients, protocols, workflows, agents..."
               className="h-9 pl-9 text-xs bg-muted/40 border-muted-foreground/15"
             />
           </div>
@@ -133,21 +178,61 @@ export function AppLayout() {
 
           <button
             onClick={() => navigate('/projects')}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-              isProjectsPage
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              isProjectFlow
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             }`}
           >
             PROJECTS
           </button>
-          <button className="rounded-full px-4 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
-            DISCOVERY
+          <button
+            onClick={() => navigate('/vault')}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+              isVault
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <DatabaseZap className="h-3 w-3" />
+            DATA VAULT
+          </button>
+          <button
+            onClick={() => navigate('/workflows')}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+              isWorkflowFlow
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Workflow className="h-3 w-3" />
+            WORKFLOWS
+          </button>
+          <button
+            onClick={() => navigate('/studio')}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+              isStudio
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Sparkles className="h-3 w-3" />
+            STUDIO
+          </button>
+          <button
+            onClick={() => navigate('/guide')}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              isGuide
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            GUIDE
           </button>
         </div>
       </header>
 
-      {!isProjectsPage && (
+      {showProjectSteps && (
         <div className="border-b bg-muted/30 px-6 py-2">
           <div className="flex items-center gap-1">
             {STEPS.map((label, idx) => {

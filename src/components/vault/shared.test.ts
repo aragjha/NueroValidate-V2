@@ -61,8 +61,8 @@ describe('parseFilters', () => {
   it('falls back to defaults for unknown values', () => {
     const params = new URLSearchParams('tab=garbage&view=also-garbage&sort=nope');
     const f = parseFilters(params);
-    expect(f.tab).toBe('criteria');
-    expect(f.view).toBe('unstructured');
+    expect(f.tab).toBe('all');
+    expect(f.view).toBe('all');
     expect(f.sort).toBe('default');
   });
 });

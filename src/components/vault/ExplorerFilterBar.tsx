@@ -50,8 +50,9 @@ const PATIENT_PILLS: PillOption[] = [
 /* ─── Default view per tab ─── */
 
 const TAB_DEFAULT_VIEW: Record<TabKey, ViewMode> = {
-  criteria: 'unstructured',
-  atoms: 'unstructured',
+  all: 'all',
+  criteria: 'all',
+  atoms: 'all',
   patients: 'all',
 };
 
@@ -230,6 +231,7 @@ function SortDropdown({
 export function ExplorerFilterBar({ filters, onChange, counts, categories }: Props) {
   /* Tab definitions */
   const tabs: { key: TabKey; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: counts.criteria.total + counts.atoms.total + counts.patients.total },
     { key: 'criteria', label: 'Criteria', count: counts.criteria.total },
     { key: 'atoms', label: 'Atoms', count: counts.atoms.total },
     { key: 'patients', label: 'Patients', count: counts.patients.total },
@@ -241,7 +243,9 @@ export function ExplorerFilterBar({ filters, onChange, counts, categories }: Pro
       ? CRITERIA_PILLS_WITH_MIXED
       : filters.tab === 'atoms'
         ? ATOM_PILLS
-        : PATIENT_PILLS;
+        : filters.tab === 'patients'
+          ? PATIENT_PILLS
+          : null;
 
   /* Category options */
   const categoryOptions = categories.map((c) => ({ label: c, value: c }));
@@ -324,11 +328,13 @@ export function ExplorerFilterBar({ filters, onChange, counts, categories }: Pro
         </div>
 
         {/* Segmented pills */}
-        <SegmentedPills
-          options={activePills}
-          value={filters.view}
-          onChange={handleViewChange}
-        />
+        {activePills && (
+          <SegmentedPills
+            options={activePills}
+            value={filters.view}
+            onChange={handleViewChange}
+          />
+        )}
       </div>
 
       {/* ── Row 2: Search + Dropdowns ── */}

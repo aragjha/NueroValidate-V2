@@ -33,7 +33,7 @@ export function AuthPage() {
       setError('Invalid credentials. Please try again.');
       return;
     }
-    navigate('/projects');
+    navigate('/home');
   }
 
   function handleForgotSubmit() {
@@ -48,7 +48,7 @@ export function AuthPage() {
           <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
             <ShieldCheck className="h-7 w-7" />
           </div>
-          <CardTitle className="text-2xl font-extrabold">NeuroValidate</CardTitle>
+          <CardTitle className="text-2xl font-extrabold">Neuro Audit</CardTitle>
           <CardDescription className="mt-1">
             {showForgot ? 'Reset your password' : 'Sign in to your RWE / RWD neurology validation workspace'}
           </CardDescription>
@@ -65,7 +65,7 @@ export function AuthPage() {
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold">Email</label>
                 <Input
-                  placeholder="you@neurovalidate.com"
+                  placeholder="you@neuroaudit.com"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -117,7 +117,7 @@ export function AuthPage() {
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold">Email address</label>
                     <Input
-                      placeholder="you@neurovalidate.com"
+                      placeholder="you@neuroaudit.com"
                       type="email"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}

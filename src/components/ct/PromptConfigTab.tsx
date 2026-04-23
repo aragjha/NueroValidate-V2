@@ -1,154 +1,208 @@
-import { useState } from 'react';
-import { Play, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, Play, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 
 type Props = {
-  keywords: string[];
-  onAddKeyword: (kw: string) => void;
-  onRemoveKeyword: (kw: string) => void;
   extractionPrompt: string;
   onExtractionPromptChange: (val: string) => void;
+  extractionValidation: string;
+  onExtractionValidationChange: (val: string) => void;
+  extractionModel: string;
+  onExtractionModelChange: (val: string) => void;
+  skipExtraction: boolean;
+  onSkipExtractionChange: (val: boolean) => void;
   reasoningPrompt: string;
   onReasoningPromptChange: (val: string) => void;
-  model: string;
-  onModelChange: (val: string) => void;
-  onRun: () => void;
-  runDisabled: boolean;
+  reasoningValidation: string;
+  onReasoningValidationChange: (val: string) => void;
+  reasoningModel: string;
+  onReasoningModelChange: (val: string) => void;
+  onValidateWithStudio?: () => void;
+  onBack?: () => void;
+  onNext?: () => void;
+  nextLabel?: string;
 };
 
 const MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-  { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  'GPT-5.4',
+  'GPT-4o',
+  'Claude Sonnet 4',
+  'Claude Haiku 4.5',
+  'Gemini 2.5 Pro',
+  'Llama 4 Maverick',
 ];
 
 export function PromptConfigTab({
-  keywords,
-  onAddKeyword,
-  onRemoveKeyword,
   extractionPrompt,
   onExtractionPromptChange,
+  extractionValidation,
+  onExtractionValidationChange,
+  extractionModel,
+  onExtractionModelChange,
+  skipExtraction,
+  onSkipExtractionChange,
   reasoningPrompt,
   onReasoningPromptChange,
-  model,
-  onModelChange,
-  onRun,
-  runDisabled,
+  reasoningValidation,
+  onReasoningValidationChange,
+  reasoningModel,
+  onReasoningModelChange,
+  onValidateWithStudio,
+  onBack,
+  onNext,
+  nextLabel = 'Next: Run Configuration',
 }: Props) {
-  const [kwInput, setKwInput] = useState('');
-
-  function handleKwSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = kwInput.trim().toLowerCase();
-    if (!trimmed) return;
-    onAddKeyword(trimmed);
-    setKwInput('');
-  }
 
   return (
-    <div className="space-y-6 p-1">
-      {/* Keywords */}
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Keywords</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Used to filter unstructured notes before extraction
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {keywords.map((kw) => (
-            <span
-              key={kw}
-              className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium"
-            >
-              {kw}
-              <button
-                type="button"
-                onClick={() => onRemoveKeyword(kw)}
-                className="ml-0.5 hover:text-destructive transition-colors cursor-pointer"
+    <div className="rounded-xl border bg-card">
+      <div className="border-b px-5 py-4">
+        <h2 className="text-lg font-bold">Prompts & Model Selection</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Configure extraction and reasoning for this atom
+        </p>
+      </div>
+      <div className="p-5 space-y-5">
+
+        {/* ── Extraction ── */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <h3 className={`text-sm font-bold ${skipExtraction ? 'text-muted-foreground' : ''}`}>
+                Extraction
+              </h3>
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                <Checkbox
+                  checked={skipExtraction}
+                  onChange={(e) => onSkipExtractionChange((e.target as HTMLInputElement).checked)}
+                />
+                <span className={skipExtraction ? 'text-muted-foreground' : ''}>Skip extraction</span>
+              </label>
+            </div>
+            {!skipExtraction && (
+              <div className="flex items-center gap-2">
+                <Select
+                  value={extractionModel}
+                  onChange={(e) => onExtractionModelChange(e.target.value)}
+                  className="h-8 w-48 text-xs"
+                >
+                  {MODELS.map((m) => <option key={m}>{m}</option>)}
+                </Select>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => alert('Refine with AI — mock action')}>
+                  <Sparkles className="mr-1 h-3 w-3" /> Refine with AI
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className={`grid gap-4 md:grid-cols-2 transition-opacity ${skipExtraction ? 'opacity-30 pointer-events-none' : ''}`}>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Prompt</label>
+              <Textarea
+                rows={5}
+                value={extractionPrompt}
+                onChange={(e) => onExtractionPromptChange(e.target.value)}
+                placeholder="Define extraction logic — what evidence should the model extract from notes?"
+                className="font-mono text-xs"
+                disabled={skipExtraction}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Validation</label>
+              <Textarea
+                rows={5}
+                value={extractionValidation}
+                onChange={(e) => onExtractionValidationChange(e.target.value)}
+                placeholder="Validate extraction output — what's an acceptable answer?"
+                className="font-mono text-xs"
+                disabled={skipExtraction}
+              />
+            </div>
+          </div>
+          {skipExtraction && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              Extraction step will be skipped — only reasoning results will be used for validation.
+            </p>
+          )}
+        </section>
+
+        <Separator />
+
+        {/* ── Reasoning ── */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-bold">Reasoning</h3>
+            <div className="flex items-center gap-2">
+              <Select
+                value={reasoningModel}
+                onChange={(e) => onReasoningModelChange(e.target.value)}
+                className="h-8 w-48 text-xs"
               >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-          <form onSubmit={handleKwSubmit} className="inline-flex">
-            <Input
-              className="h-7 w-32 text-xs"
-              placeholder="+ add keyword"
-              value={kwInput}
-              onChange={(e) => setKwInput(e.target.value)}
-            />
-          </form>
-        </div>
-        {keywords.length === 0 && (
-          <p className="text-xs text-muted-foreground italic">
-            No keywords added. Add keywords to focus extraction on relevant notes.
-          </p>
+                {MODELS.map((m) => <option key={m}>{m}</option>)}
+              </Select>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => alert('Refine with AI — mock action')}>
+                <Sparkles className="mr-1 h-3 w-3" /> Refine with AI
+              </Button>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Prompt</label>
+              <Textarea
+                rows={5}
+                value={reasoningPrompt}
+                onChange={(e) => onReasoningPromptChange(e.target.value)}
+                placeholder="Define reasoning chain — how should the model decide eligibility?"
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Validation</label>
+              <Textarea
+                rows={5}
+                value={reasoningValidation}
+                onChange={(e) => onReasoningValidationChange(e.target.value)}
+                placeholder="Validate reasoning output — e.g. must return Eligible / Ineligible / Unknown"
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Studio entry (optional) */}
+        {onValidateWithStudio && (
+          <div className="rounded-xl border border-dashed border-primary/20 bg-primary/[0.02] p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                Want to test this prompt before running?{' '}
+                <span
+                  className="font-semibold text-primary cursor-pointer hover:underline"
+                  onClick={onValidateWithStudio}
+                >
+                  Validate with AI agents
+                </span>
+              </p>
+            </div>
+          </div>
         )}
-      </section>
 
-      {/* Extraction Prompt */}
-      <section className="space-y-2">
-        <div>
-          <h3 className="text-sm font-semibold">Extraction Prompt</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Instructs the model on what evidence to extract from clinical notes
-          </p>
+        {/* Stage nav */}
+        <div className="flex items-center justify-between pt-2 border-t">
+          <Button variant="ghost" onClick={onBack} disabled={!onBack}>
+            <ChevronLeft className="mr-1 h-4 w-4" /> Back
+          </Button>
+          <Button onClick={onNext} disabled={!onNext}>
+            {nextLabel === 'Run Extraction' ? (
+              <><Play className="mr-2 h-4 w-4" /> {nextLabel}</>
+            ) : (
+              <>{nextLabel}<ArrowRight className="ml-2 h-4 w-4" /></>
+            )}
+          </Button>
         </div>
-        <Textarea
-          value={extractionPrompt}
-          onChange={(e) => onExtractionPromptChange(e.target.value)}
-          placeholder="e.g. Extract all mentions of the patient's diagnosis, date of onset, and any related symptoms from the clinical note."
-          className="min-h-[100px] font-mono text-xs"
-        />
-      </section>
-
-      {/* Reasoning Prompt */}
-      <section className="space-y-2">
-        <div>
-          <h3 className="text-sm font-semibold">Reasoning Prompt</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Instructs the model on how to reason about eligibility based on extracted evidence
-          </p>
-        </div>
-        <Textarea
-          value={reasoningPrompt}
-          onChange={(e) => onReasoningPromptChange(e.target.value)}
-          placeholder="e.g. Based on the extracted evidence, determine if the patient meets the criterion. Return Eligible if the evidence clearly supports it, Ineligible if it contradicts, or Unknown if insufficient."
-          className="min-h-[100px] font-mono text-xs"
-        />
-      </section>
-
-      {/* Model + Run */}
-      <section className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2 flex-1 max-w-xs">
-          <label className="text-sm font-semibold">Model</label>
-          <Select
-            value={model}
-            onChange={(e) => onModelChange(e.target.value)}
-            className="text-sm"
-          >
-            {MODELS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <Button
-          onClick={onRun}
-          disabled={runDisabled}
-          className="gap-2"
-        >
-          <Play className="h-4 w-4" />
-          Run Extraction
-        </Button>
-      </section>
+      </div>
     </div>
   );
 }

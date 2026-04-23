@@ -2,7 +2,7 @@ import type { CohortImport, CohortAtomResult, CriterionAtom, CriterionType } fro
 
 /* ─── Types ─── */
 
-export type TabKey = 'criteria' | 'atoms' | 'patients';
+export type TabKey = 'all' | 'criteria' | 'atoms' | 'patients';
 
 export type ViewMode =
   | 'all'
@@ -88,8 +88,8 @@ export type PatientRowData = {
 /* ─── Constants ─── */
 
 export const DEFAULT_FILTERS: FilterState = {
-  tab: 'criteria',
-  view: 'unstructured',
+  tab: 'all',
+  view: 'all',
   cat: [],
   status: [],
   q: '',
@@ -104,7 +104,7 @@ export const DATA_SOURCE_COLOR: Record<'structured' | 'unstructured', string> = 
 
 /* ─── Valid enum sets for parse validation ─── */
 
-const VALID_TABS = new Set<TabKey>(['criteria', 'atoms', 'patients']);
+const VALID_TABS = new Set<TabKey>(['all', 'criteria', 'atoms', 'patients']);
 const VALID_VIEWS = new Set<ViewMode>(['all', 'structured', 'unstructured', 'mixed', 'eligible', 'ineligible', 'needs-review']);
 const VALID_SORTS = new Set<SortMode>(['default', 'name', 'pending', 'yes', 'no']);
 
@@ -163,19 +163,49 @@ export function atomStatus(atom: CohortAtomResult | CriterionAtom): AtomStatus {
   return 'needs-config';
 }
 
+/* ─── Humanize a raw criterion_id like `c_brain_surgery` → `Brain Surgery` ─── */
+
+const CRITERION_ID_ACRONYMS = new Set(['ad', 'mci', 'dbs', 'pet', 'mri', 'ct', 'csf', 'ehr', 'vp', 'ms', 'rrms', 'als', 'cgrp', 'suvr', 'moh', 'nia', 'cdr', 'mmse']);
+
+function humanizeCriterionId(id: string): string {
+  const stripped = id.replace(/^c_/i, '');
+  const words = stripped.split(/[_-]+/).filter(Boolean);
+  return words
+    .map((w) => {
+      if (/^\d+$/.test(w)) return w;
+      if (CRITERION_ID_ACRONYMS.has(w.toLowerCase())) return w.toUpperCase();
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 /* ─── buildAtomRows ─── */
 
 export function buildAtomRows(cohort: CohortImport): AtomRowData[] {
-  const criterionMap = new Map(cohort.criteria.map((c, i) => [c.id, { criterion: c, index: i + 1 }]));
+  const criterionMapById = new Map(cohort.criteria.map((c, i) => [c.id, { criterion: c, index: i + 1 }]));
+  /* Secondary lookup: match display-layer criteria by normalized name.
+   * Useful when raw criteriaResults ids (e.g. `c_age_50`) don't match display ids (e.g. `C1`). */
+  const normalizeName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const criterionMapByName = new Map(
+    cohort.criteria.map((c, i) => [normalizeName(c.name), { criterion: c, index: i + 1 }]),
+  );
+
+  function lookupParent(crId: string, fallbackName: string): { index: number; name: string; type: CriterionType } {
+    const byId = criterionMapById.get(crId);
+    if (byId) return { index: byId.index, name: byId.criterion.name, type: byId.criterion.type };
+    const byRawName = criterionMapByName.get(normalizeName(fallbackName));
+    if (byRawName) return { index: byRawName.index, name: byRawName.criterion.name, type: byRawName.criterion.type };
+    const byHumanizedId = criterionMapByName.get(normalizeName(humanizeCriterionId(crId)));
+    if (byHumanizedId) return { index: byHumanizedId.index, name: byHumanizedId.criterion.name, type: byHumanizedId.criterion.type };
+    return { index: 0, name: humanizeCriterionId(crId), type: 'inclusion' };
+  }
 
   // Real data path: criteriaResults present
   if (cohort.criteriaResults && cohort.criteriaResults.length > 0) {
     const rows: AtomRowData[] = [];
     for (const cr of cohort.criteriaResults) {
-      const meta = criterionMap.get(cr.criterion_id);
-      const parentIndex = meta?.index ?? 0;
-      const parentName = meta?.criterion.name ?? cr.criterion_id;
-      const parentType: CriterionType = meta?.criterion.type ?? 'inclusion';
+      const firstAtomLabel = cr.atoms[0]?.metadata.concept_label ?? cr.criterion_id;
+      const { index: parentIndex, name: parentName, type: parentType } = lookupParent(cr.criterion_id, firstAtomLabel);
       const atomTotal = cr.atoms.length;
 
       cr.atoms.forEach((atom, atomIdx) => {
@@ -213,7 +243,7 @@ export function buildAtomRows(cohort: CohortImport): AtomRowData[] {
   // Fallback: display-layer atoms
   const rows: AtomRowData[] = [];
   for (const criterion of cohort.criteria) {
-    const meta = criterionMap.get(criterion.id);
+    const meta = criterionMapById.get(criterion.id);
     const parentIndex = meta?.index ?? 0;
     const atomTotal = criterion.atoms.length;
 
@@ -262,13 +292,51 @@ export function rollupCriterionStatus(atomRows: AtomRowData[]): AtomStatus {
   return 'needs-config';
 }
 
-/* ─── buildCriterionRows ─── */
+/* ─── buildCriterionRows ──
+ * Two ID spaces exist in cohort data:
+ *   - Display-layer: `cohort.criteria[i].id`           → e.g. "C1", "C2", "C3"
+ *   - Raw NeuroTerminal: `criteriaResults[i].criterion_id` → e.g. "c_ad_diagnosis", "c_amyloid_pet"
+ *
+ * `buildAtomRows` writes the RAW id into `atom.parentCriterionId` (source of truth from
+ * criteriaResults). This function used to do a naive `criterion.id === parentCriterionId`
+ * match and always returned empty atom lists — fixed to match by either raw id OR the
+ * display-layer name that `buildAtomRows.lookupParent` resolved the atom to.
+ *
+ * Also builds synthetic criterion rows for any raw `criteriaResults` criteria that have
+ * no matching display-layer criterion (e.g. `c_ad_diagnosis` with no C* counterpart),
+ * so deep-links like /ct-criteria/c_ad_diagnosis still resolve. */
 
 export function buildCriterionRows(cohort: CohortImport): CriterionRowData[] {
   const allAtomRows = buildAtomRows(cohort);
+  const normalizeName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-  return cohort.criteria.map((criterion, idx) => {
-    const atomRows = allAtomRows.filter((a) => a.parentCriterionId === criterion.id);
+  /* Group atoms by parentCriterionId (raw) and by parentCriterionName (display-resolved) */
+  const atomsByParentId = new Map<string, AtomRowData[]>();
+  const atomsByParentName = new Map<string, AtomRowData[]>();
+  for (const a of allAtomRows) {
+    const byId = atomsByParentId.get(a.parentCriterionId) ?? [];
+    byId.push(a);
+    atomsByParentId.set(a.parentCriterionId, byId);
+    const normName = normalizeName(a.parentCriterionName);
+    const byName = atomsByParentName.get(normName) ?? [];
+    byName.push(a);
+    atomsByParentName.set(normName, byName);
+  }
+
+  const rows: CriterionRowData[] = [];
+  const consumedRawIds = new Set<string>();
+
+  /* 1) One row per display-layer criterion — match atoms via either id or resolved name */
+  cohort.criteria.forEach((criterion, idx) => {
+    const normName = normalizeName(criterion.name);
+    /* Try direct id match, then name match against atoms' resolved parent name */
+    let atomRows: AtomRowData[] = atomsByParentId.get(criterion.id) ?? [];
+    if (atomRows.length === 0) {
+      atomRows = atomsByParentName.get(normName) ?? [];
+    }
+    /* Record which raw ids we've now represented under this display criterion */
+    for (const a of atomRows) consumedRawIds.add(a.parentCriterionId);
+
     const structuredAtoms = atomRows.filter((a) => a.dataSource === 'structured');
     const unstructuredAtoms = atomRows.filter((a) => a.dataSource === 'unstructured');
     const mixedness = criterionMixedness(atomRows);
@@ -277,7 +345,7 @@ export function buildCriterionRows(cohort: CohortImport): CriterionRowData[] {
     const completedAtoms = atomRows.filter((a) => a.status === 'auto-validated').length;
     const pctComplete = totalAtoms > 0 ? Math.round((completedAtoms / totalAtoms) * 100) : 100;
 
-    return {
+    rows.push({
       id: criterion.id,
       index: idx + 1,
       name: criterion.name,
@@ -289,8 +357,35 @@ export function buildCriterionRows(cohort: CohortImport): CriterionRowData[] {
       mixedness,
       status,
       pctComplete,
-    };
+    });
   });
+
+  /* 2) Synthesize rows for raw criteriaResults entries that have no display-layer match.
+   *    Keeps deep-links like /ct-criteria/c_ad_diagnosis resolvable. */
+  for (const [rawId, atomGroup] of atomsByParentId) {
+    if (consumedRawIds.has(rawId)) continue;
+    if (atomGroup.length === 0) continue;
+    const first = atomGroup[0];
+    const structuredAtoms = atomGroup.filter((a) => a.dataSource === 'structured');
+    const unstructuredAtoms = atomGroup.filter((a) => a.dataSource === 'unstructured');
+    rows.push({
+      id: rawId,
+      index: rows.length + 1,
+      name: first.parentCriterionName,
+      type: first.parentCriterionType,
+      category: first.category,
+      atoms: atomGroup,
+      structuredAtoms,
+      unstructuredAtoms,
+      mixedness: criterionMixedness(atomGroup),
+      status: rollupCriterionStatus(atomGroup),
+      pctComplete: atomGroup.length > 0
+        ? Math.round((atomGroup.filter((a) => a.status === 'auto-validated').length / atomGroup.length) * 100)
+        : 100,
+    });
+  }
+
+  return rows;
 }
 
 /* ─── applyAtomFilters ─── */

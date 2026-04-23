@@ -1,248 +1,260 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useMemo, useState } from 'react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import type { PatientRowData, PatientCriterionFlagRow } from './shared';
-
-/* ─── Constants ─── */
+import { cn } from '@/lib/utils';
+import type { PatientRowData, CriterionRowData } from './shared';
 
 const PAGE_SIZE = 50;
 
-/* ─── Helpers ─── */
-
-function passFail(flag: PatientCriterionFlagRow): boolean {
-  const val = flag.override !== undefined ? flag.override : flag.value;
-  /* Inclusion: true = pass. Exclusion: false = pass. */
-  return flag.criterionType === 'inclusion' ? val : !val;
-}
-
-function countPass(flags: PatientCriterionFlagRow[]): number {
-  return flags.filter(passFail).length;
-}
-
-/* ─── MiniPassBar ─── */
-
-function MiniPassBar({ pass, total }: { pass: number; total: number }) {
-  const pct = total > 0 ? Math.round((pass / total) * 100) : 0;
-  const title = `${pass}/${total} criteria pass`;
-  return (
-    <div
-      className="relative h-1.5 w-16 rounded-full bg-muted overflow-hidden shrink-0"
-      title={title}
-      role="img"
-      aria-label={title}
-    >
-      <div
-        className={cn(
-          'absolute left-0 top-0 h-full rounded-full',
-          pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-blue-500' : 'bg-amber-500',
-        )}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
-/* ─── CriterionChip ─── */
-
-function CriterionChip({ flag }: { flag: PatientCriterionFlagRow }) {
-  const pass = passFail(flag);
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-medium',
-        pass
-          ? 'border-emerald-200 bg-emerald-50/50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/20 dark:text-emerald-300'
-          : 'border-red-200 bg-red-50/50 text-red-700 dark:border-red-800/40 dark:bg-red-950/20 dark:text-red-300',
-      )}
-    >
-      <span
-        className={cn('h-1.5 w-1.5 rounded-full shrink-0', pass ? 'bg-emerald-500' : 'bg-red-500')}
-        aria-hidden="true"
-      />
-      <span className="truncate" title={flag.criterionName}>
-        {flag.criterionName.length > 30
-          ? `${flag.criterionName.slice(0, 28)}…`
-          : flag.criterionName}
-      </span>
-      <Badge
-        variant={flag.criterionType === 'inclusion' ? 'success' : 'destructive'}
-        className="shrink-0 px-1 py-0 text-[9px] font-bold"
-      >
-        {flag.criterionType === 'inclusion' ? 'INC' : 'EXC'}
-      </Badge>
-    </div>
-  );
-}
-
-/* ─── PatientRow ─── */
-
-function PatientRow({ patient }: { patient: PatientRowData }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const isEligible = patient.overrideEligible !== undefined ? patient.overrideEligible : patient.eligible;
-  const isReviewed = !!patient.reviewedBy;
-  const flags = patient.flags ?? [];
-  const passCount = countPass(flags);
-  const totalCount = flags.length;
-
-  return (
-    <div className="rounded-xl border bg-card transition-shadow hover:shadow-sm">
-      {/* Collapsed header */}
-      <button
-        type="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full cursor-pointer select-none px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-xl"
-      >
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Chevron */}
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-              expanded && 'rotate-180',
-            )}
-            aria-hidden="true"
-          />
-
-          {/* Patient ID */}
-          <span className="font-mono text-sm font-semibold text-foreground shrink-0">
-            {patient.id}
-          </span>
-
-          {/* Eligible / Ineligible badge */}
-          <Badge
-            variant={isEligible ? 'success' : 'destructive'}
-            className="shrink-0 px-1.5 py-0 text-[10px] font-bold"
-          >
-            {isEligible ? 'Eligible' : 'Ineligible'}
-          </Badge>
-
-          {/* Needs review badge */}
-          {!isReviewed && (
-            <Badge variant="warning" className="shrink-0 px-1.5 py-0 text-[10px]">
-              Needs review
-            </Badge>
-          )}
-
-          {/* Spacer */}
-          <span className="flex-1" />
-
-          {/* Mini pass bar + count */}
-          {totalCount > 0 && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              <MiniPassBar pass={passCount} total={totalCount} />
-              <span className="text-xs text-muted-foreground font-medium">
-                {passCount}/{totalCount} pass
-              </span>
-            </div>
-          )}
-        </div>
-      </button>
-
-      {/* Expanded criterion chips */}
-      {expanded && (
-        <div className="border-t px-4 pb-4 pt-3">
-          {flags.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No per-criterion data available.</p>
-          ) : (
-            <>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Criterion Pass/Fail
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {flags.map((flag) => (
-                  <CriterionChip key={flag.criterionId} flag={flag} />
-                ))}
-              </div>
-              {patient.reviewedBy && (
-                <p className="mt-3 text-[10px] text-muted-foreground">
-                  Reviewed by{' '}
-                  <span className="font-semibold text-foreground">{patient.reviewedBy}</span>
-                  {patient.reviewedAt && (
-                    <>
-                      {' on '}
-                      {new Date(patient.reviewedAt).toLocaleDateString()}
-                    </>
-                  )}
-                </p>
-              )}
-              {patient.notes && (
-                <p className="mt-1 text-[10px] text-muted-foreground italic">{patient.notes}</p>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── PatientsTab ─── */
-
 interface PatientsTabProps {
   patients: PatientRowData[];
+  criteria: CriterionRowData[];
 }
 
-export function PatientsTab({ patients }: PatientsTabProps) {
+type PatientRecord = {
+  patientId: string;
+  encounterId: string;
+  requestId: string;
+  date: string;
+  keywords: string[];
+};
+
+/* Deterministic synthetic encounter/request ID/date + keywords per (patient, criterion) */
+function hash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function hexFromHash(h: number, len: number): string {
+  let s = h.toString(16);
+  while (s.length < len) s = s + (h * 7).toString(16);
+  return s.slice(0, len);
+}
+
+/* Category-based dummy keyword pools — used when NeuroTerminal hasn't attached real keywords to the atom */
+const CATEGORY_KEYWORD_POOL: Record<string, string[]> = {
+  Demographics: ['age 65+', 'female', 'male', 'caregiver present', 'english speaker', 'medicare', 'geriatric'],
+  Diagnosis: ['alzheimer', 'MCI', 'cognitive decline', 'dementia', 'amnestic', 'probable AD', 'early onset'],
+  Labs: ['a-beta42', 'p-tau181', 'CSF', 'p-tau217', 'GFAP', 'NfL', 'plasma biomarker'],
+  Imaging: ['amyloid pet', 'florbetapir', 'centiloid', 'MRI brain', 'FDG-PET', 'temporoparietal', 'WMH'],
+  Medications: ['donepezil', 'memantine', 'lecanemab', 'aducanumab', 'donanemab', 'statin', 'SSRI'],
+  Procedures: ['lumbar puncture', 'PET scan', 'cranial MRI', 'no cranial surgery', 'EEG', 'cognitive assessment'],
+  Clinical: ['MMSE', 'MoCA', 'CDR 0.5', 'ADAS-cog', 'global CDR', 'delayed recall', 'trail making'],
+  Biomarkers: ['amyloid positive', 'tau positive', 'Braak stage', 'A+T+', 'GFAP elevated', 'neurodegeneration'],
+  Cognitive: ['memory loss', 'executive function', 'visuospatial', 'word finding', 'apathy', 'disorientation'],
+  Medication: ['donepezil', 'memantine', 'lecanemab', 'adverse event', 'discontinued', 'infusion reaction'],
+  Drug: ['steroid', 'anticoag', 'antipsychotic', 'contraindicated', 'washout'],
+  General: ['clinical note', 'progress note', 'follow-up', 'stable', 'encounter'],
+};
+
+function buildRecord(patientId: string, criterion: CriterionRowData): PatientRecord {
+  const seed = hash(patientId + criterion.id);
+  const encounterId = patientId; // mirror screenshot — same ID
+  const requestId = hexFromHash(seed, 36).replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+  const year = 2025 + (seed % 2);
+  const month = ((seed >> 2) % 12) + 1;
+  const day = ((seed >> 4) % 28) + 1;
+  const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  // Build keyword pool: prefer real atom keywords, else category-based dummy pool
+  const realKeywords = Array.from(new Set(criterion.atoms.flatMap((a) => a.keywords ?? [])));
+  const pool = realKeywords.length > 0
+    ? realKeywords
+    : (CATEGORY_KEYWORD_POOL[criterion.category] ?? CATEGORY_KEYWORD_POOL.General!);
+
+  // Pick 1-3 keywords deterministically, rotating start index per patient so rows differ
+  const numKw = 1 + (seed % 3);
+  const start = (seed >> 5) % pool.length;
+  const keywords: string[] = [];
+  for (let i = 0; i < numKw && i < pool.length; i++) {
+    const kw = pool[(start + i * 2 + 1) % pool.length];
+    if (!keywords.includes(kw)) keywords.push(kw);
+  }
+
+  return { patientId, encounterId, requestId, date, keywords };
+}
+
+export function PatientsTab({ patients, criteria }: PatientsTabProps) {
+  const [activeCriterionId, setActiveCriterionId] = useState<string>(criteria[0]?.id ?? '');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
-  if (patients.length === 0) {
+  const activeCriterion = useMemo(
+    () => criteria.find((c) => c.id === activeCriterionId),
+    [criteria, activeCriterionId],
+  );
+
+  const records: PatientRecord[] = useMemo(() => {
+    if (!activeCriterion) return [];
+    return patients.map((p) => buildRecord(p.id, activeCriterion));
+  }, [patients, activeCriterion]);
+
+  const filtered: PatientRecord[] = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return records;
+    return records.filter(
+      (r) =>
+        r.patientId.toLowerCase().includes(q) ||
+        r.encounterId.toLowerCase().includes(q) ||
+        r.requestId.toLowerCase().includes(q) ||
+        r.keywords.some((k) => k.toLowerCase().includes(q)),
+    );
+  }, [records, search]);
+
+  if (criteria.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-12 text-center">
-        <p className="text-sm font-medium text-muted-foreground">No patients found</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Try adjusting your filters or import a cohort with patients.
-        </p>
+        <p className="text-sm font-medium text-muted-foreground">No criteria to view patients by</p>
       </div>
     );
   }
 
-  const totalPages = Math.ceil(patients.length / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pagePatients = patients.slice(startIdx, startIdx + PAGE_SIZE);
+  const pageRows = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
   return (
     <div className="space-y-3">
-      {/* Patient rows */}
-      <div className="space-y-1.5">
-        {pagePatients.map((patient) => (
-          <PatientRow key={patient.id} patient={patient} />
-        ))}
+      {/* Criterion tabs + meta */}
+      <div className="flex items-start gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {criteria.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setActiveCriterionId(c.id);
+                setPage(1);
+              }}
+              className={cn(
+                'rounded-full px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
+                activeCriterionId === c.id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'border bg-background text-muted-foreground hover:text-foreground',
+              )}
+            >
+              C{c.index}
+              <span
+                className={cn(
+                  'ml-1.5 rounded-full px-1.5 text-[10px]',
+                  activeCriterionId === c.id ? 'bg-primary-foreground/20' : 'bg-muted',
+                )}
+              >
+                {patients.length}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Pagination */}
-      {patients.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between border-t pt-3">
-          <p className="text-xs text-muted-foreground">
-            Showing {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, patients.length)} of{' '}
-            {patients.length} patients
-          </p>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <ChevronLeft className="h-3 w-3" aria-hidden="true" />
-              Prev
-            </button>
-            <span className="text-xs font-medium text-muted-foreground px-1">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              Next
-              <ChevronRight className="h-3 w-3" aria-hidden="true" />
-            </button>
+      {activeCriterion && (
+        <>
+          {/* Title row + search */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold">{activeCriterion.name}</p>
+              <p className="text-[11px] text-muted-foreground">{filtered.length} records found</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search by ID, keyword, or text…"
+                  className="pl-9 h-8 w-64 text-xs"
+                />
+              </div>
+              <Badge variant="outline" className="text-[10px]">
+                criteria_id: {activeCriterion.id}
+              </Badge>
+            </div>
           </div>
-        </div>
+
+          {/* Table */}
+          <div className="rounded-xl border bg-card overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b">
+                <tr>
+                  <th className="px-3 py-2 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider w-10">#</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Patient ID</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Encounter ID</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Request ID</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Keywords</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {pageRows.map((r, i) => (
+                  <tr key={`${r.patientId}-${i}`} className="hover:bg-muted/20">
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{startIdx + i + 1}</td>
+                    <td className="px-3 py-2 text-xs font-mono font-semibold">{r.patientId}</td>
+                    <td className="px-3 py-2 text-xs font-mono">{r.encounterId}</td>
+                    <td className="px-3 py-2 text-[11px] font-mono text-muted-foreground truncate max-w-[200px]">
+                      {r.requestId}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{r.date}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {r.keywords.length > 0 ? (
+                          r.keywords.map((kw) => (
+                            <Badge key={kw} variant="secondary" className="text-[9px] px-1.5 py-0 font-normal">
+                              {kw}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/60 italic">—</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {pageRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-xs text-muted-foreground">
+                      No records match your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                Showing {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, filtered.length)} of {filtered.length} records
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronLeft className="h-3 w-3" /> Prev
+                </button>
+                <span className="text-xs font-medium text-muted-foreground px-1">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

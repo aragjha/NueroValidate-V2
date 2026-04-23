@@ -38,23 +38,23 @@ import {
 type SyncEntry = {
   date: string; provider: string; sqlSchema: string; sqlLastTransfer: string; sqlRows: number;
   lastSync: string; esIndex: string; esRecords: number;
-  meta: { sqlNdids: number; sqlEncounterIds: number; esNdids: number; esEncounterIds: number; tableCount: number; avgRowSize: string; lastFullRefresh: string; incrementalSince: string; status: string };
+  meta: { sqlNdids: number; sqlEncounterIds: number; sqlAvgCharSize: number; esNdids: number; esEncounterIds: number; esAvgCharSize: number; tableCount: number; lastFullRefresh: string; incrementalSince: string; status: string };
 };
 const SYNC_LOG: SyncEntry[] = [
-  { date: '2026-02-20', provider: 'Dent', sqlSchema: 'RJD_dent_udm', sqlLastTransfer: '2026-02-20 08:15:22', sqlRows: 215_600, lastSync: '2026-02-20 08:32:10', esIndex: 'dent_udm_idx', esRecords: 215_600, meta: { sqlNdids: 18_420, sqlEncounterIds: 87_340, esNdids: 18_420, esEncounterIds: 87_340, tableCount: 12, avgRowSize: '2.4 KB', lastFullRefresh: '2026-02-15 02:00:00', incrementalSince: '2026-02-19 08:00:00', status: 'Healthy' } },
-  { date: '2026-02-20', provider: 'Dent', sqlSchema: 'dent_progress_notes', sqlLastTransfer: '2026-02-20 08:20:45', sqlRows: 342_100, lastSync: '2026-02-20 08:45:30', esIndex: 'dent_notes_idx', esRecords: 341_820, meta: { sqlNdids: 18_420, sqlEncounterIds: 92_510, esNdids: 18_400, esEncounterIds: 92_380, tableCount: 4, avgRowSize: '5.8 KB', lastFullRefresh: '2026-02-15 02:00:00', incrementalSince: '2026-02-19 08:00:00', status: 'Healthy' } },
-  { date: '2026-02-20', provider: 'FCN', sqlSchema: 'RJD_fcn_udm', sqlLastTransfer: '2026-02-20 07:45:00', sqlRows: 98_320, lastSync: '2026-02-20 08:01:45', esIndex: 'fcn_udm_idx', esRecords: 97_815, meta: { sqlNdids: 11_200, sqlEncounterIds: 42_850, esNdids: 11_180, esEncounterIds: 42_720, tableCount: 10, avgRowSize: '2.1 KB', lastFullRefresh: '2026-02-14 02:00:00', incrementalSince: '2026-02-19 07:00:00', status: 'Healthy' } },
-  { date: '2026-02-20', provider: 'FCN', sqlSchema: 'fcn_progress_notes', sqlLastTransfer: '2026-02-20 07:50:10', sqlRows: 156_700, lastSync: '2026-02-20 08:10:20', esIndex: 'fcn_notes_idx', esRecords: 156_700, meta: { sqlNdids: 11_200, sqlEncounterIds: 44_300, esNdids: 11_200, esEncounterIds: 44_300, tableCount: 3, avgRowSize: '4.9 KB', lastFullRefresh: '2026-02-14 02:00:00', incrementalSince: '2026-02-19 07:00:00', status: 'Healthy' } },
-  { date: '2026-02-19', provider: 'TNG', sqlSchema: 'RJD_tng_udm', sqlLastTransfer: '2026-02-19 22:30:15', sqlRows: 67_400, lastSync: '2026-02-19 23:05:30', esIndex: 'tng_udm_idx', esRecords: 67_400, meta: { sqlNdids: 8_950, sqlEncounterIds: 31_200, esNdids: 8_950, esEncounterIds: 31_200, tableCount: 11, avgRowSize: '2.3 KB', lastFullRefresh: '2026-02-13 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Healthy' } },
-  { date: '2026-02-19', provider: 'TNG', sqlSchema: 'tng_progress_notes', sqlLastTransfer: '2026-02-19 22:35:00', sqlRows: 89_600, lastSync: '2026-02-19 23:15:40', esIndex: 'tng_notes_idx', esRecords: 89_120, meta: { sqlNdids: 8_950, sqlEncounterIds: 33_100, esNdids: 8_920, esEncounterIds: 32_980, tableCount: 3, avgRowSize: '5.1 KB', lastFullRefresh: '2026-02-13 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Delta detected' } },
-  { date: '2026-02-19', provider: 'Arizona', sqlSchema: 'RJD_arizona_udm', sqlLastTransfer: '2026-02-19 22:30:15', sqlRows: 184_320, lastSync: '2026-02-19 23:12:40', esIndex: 'arizona_udm_idx', esRecords: 183_900, meta: { sqlNdids: 22_100, sqlEncounterIds: 78_600, esNdids: 22_050, esEncounterIds: 78_340, tableCount: 14, avgRowSize: '2.6 KB', lastFullRefresh: '2026-02-12 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Minor delta' } },
-  { date: '2026-02-19', provider: 'Arizona', sqlSchema: 'arizona_progress_notes', sqlLastTransfer: '2026-02-19 22:40:00', sqlRows: 265_800, lastSync: '2026-02-19 23:25:50', esIndex: 'arizona_notes_idx', esRecords: 265_800, meta: { sqlNdids: 22_100, sqlEncounterIds: 81_200, esNdids: 22_100, esEncounterIds: 81_200, tableCount: 4, avgRowSize: '6.2 KB', lastFullRefresh: '2026-02-12 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Healthy' } },
-  { date: '2026-02-18', provider: 'MIND', sqlSchema: 'RJD_mind_udm', sqlLastTransfer: '2026-02-18 03:00:00', sqlRows: 128_500, lastSync: '2026-02-18 03:22:05', esIndex: 'mind_udm_idx', esRecords: 128_500, meta: { sqlNdids: 14_800, sqlEncounterIds: 56_200, esNdids: 14_800, esEncounterIds: 56_200, tableCount: 10, avgRowSize: '2.2 KB', lastFullRefresh: '2026-02-11 02:00:00', incrementalSince: '2026-02-17 03:00:00', status: 'Healthy' } },
-  { date: '2026-02-18', provider: 'MIND', sqlSchema: 'mind_progress_notes', sqlLastTransfer: '2026-02-18 03:10:00', sqlRows: 178_300, lastSync: '2026-02-18 03:35:15', esIndex: 'mind_notes_idx', esRecords: 178_300, meta: { sqlNdids: 14_800, sqlEncounterIds: 58_900, esNdids: 14_800, esEncounterIds: 58_900, tableCount: 3, avgRowSize: '5.5 KB', lastFullRefresh: '2026-02-11 02:00:00', incrementalSince: '2026-02-17 03:00:00', status: 'Healthy' } },
-  { date: '2026-02-17', provider: 'Raleigh', sqlSchema: 'RJD_raleigh_udm', sqlLastTransfer: '2026-02-17 03:00:00', sqlRows: 74_200, lastSync: '2026-02-17 03:18:30', esIndex: 'raleigh_udm_idx', esRecords: 74_200, meta: { sqlNdids: 9_600, sqlEncounterIds: 34_500, esNdids: 9_600, esEncounterIds: 34_500, tableCount: 9, avgRowSize: '2.0 KB', lastFullRefresh: '2026-02-10 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Healthy' } },
-  { date: '2026-02-17', provider: 'Raleigh', sqlSchema: 'raleigh_progress_notes', sqlLastTransfer: '2026-02-17 03:05:00', sqlRows: 102_400, lastSync: '2026-02-17 03:28:40', esIndex: 'raleigh_notes_idx', esRecords: 102_400, meta: { sqlNdids: 9_600, sqlEncounterIds: 36_100, esNdids: 9_600, esEncounterIds: 36_100, tableCount: 3, avgRowSize: '4.7 KB', lastFullRefresh: '2026-02-10 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Healthy' } },
-  { date: '2026-02-17', provider: 'JWM', sqlSchema: 'RJD_jwm_udm', sqlLastTransfer: '2026-02-17 03:00:00', sqlRows: 53_800, lastSync: '2026-02-17 03:14:20', esIndex: 'jwm_udm_idx', esRecords: 53_210, meta: { sqlNdids: 6_800, sqlEncounterIds: 24_100, esNdids: 6_750, esEncounterIds: 23_900, tableCount: 8, avgRowSize: '1.9 KB', lastFullRefresh: '2026-02-09 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Minor delta' } },
-  { date: '2026-02-17', provider: 'JWM', sqlSchema: 'jwm_progress_notes', sqlLastTransfer: '2026-02-17 03:08:00', sqlRows: 71_500, lastSync: '2026-02-17 03:22:55', esIndex: 'jwm_notes_idx', esRecords: 71_500, meta: { sqlNdids: 6_800, sqlEncounterIds: 25_400, esNdids: 6_800, esEncounterIds: 25_400, tableCount: 3, avgRowSize: '4.3 KB', lastFullRefresh: '2026-02-09 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Healthy' } },
+  { date: '2026-02-20', provider: 'Dent', sqlSchema: 'RGD_dent_udm', sqlLastTransfer: '2026-02-20 08:15:22', sqlRows: 215_600, lastSync: '2026-02-20 08:32:10', esIndex: 'dent_udm_idx', esRecords: 215_600, meta: { sqlNdids: 18_420, sqlEncounterIds: 87_340, sqlAvgCharSize: 2_450, esNdids: 18_420, esEncounterIds: 87_340, esAvgCharSize: 2_440, tableCount: 12, lastFullRefresh: '2026-02-15 02:00:00', incrementalSince: '2026-02-19 08:00:00', status: 'Healthy' } },
+  { date: '2026-02-20', provider: 'Dent', sqlSchema: 'dent_progress_notes', sqlLastTransfer: '2026-02-20 08:20:45', sqlRows: 342_100, lastSync: '2026-02-20 08:45:30', esIndex: 'dent_notes_idx', esRecords: 341_820, meta: { sqlNdids: 18_420, sqlEncounterIds: 92_510, sqlAvgCharSize: 5_820, esNdids: 18_400, esEncounterIds: 92_380, esAvgCharSize: 5_810, tableCount: 4, lastFullRefresh: '2026-02-15 02:00:00', incrementalSince: '2026-02-19 08:00:00', status: 'Healthy' } },
+  { date: '2026-02-20', provider: 'FCN', sqlSchema: 'RGD_fcn_udm', sqlLastTransfer: '2026-02-20 07:45:00', sqlRows: 98_320, lastSync: '2026-02-20 08:01:45', esIndex: 'fcn_udm_idx', esRecords: 97_815, meta: { sqlNdids: 11_200, sqlEncounterIds: 42_850, sqlAvgCharSize: 2_180, esNdids: 11_180, esEncounterIds: 42_720, esAvgCharSize: 2_170, tableCount: 10, lastFullRefresh: '2026-02-14 02:00:00', incrementalSince: '2026-02-19 07:00:00', status: 'Healthy' } },
+  { date: '2026-02-20', provider: 'FCN', sqlSchema: 'fcn_progress_notes', sqlLastTransfer: '2026-02-20 07:50:10', sqlRows: 156_700, lastSync: '2026-02-20 08:10:20', esIndex: 'fcn_notes_idx', esRecords: 156_700, meta: { sqlNdids: 11_200, sqlEncounterIds: 44_300, sqlAvgCharSize: 4_950, esNdids: 11_200, esEncounterIds: 44_300, esAvgCharSize: 4_950, tableCount: 3, lastFullRefresh: '2026-02-14 02:00:00', incrementalSince: '2026-02-19 07:00:00', status: 'Healthy' } },
+  { date: '2026-02-19', provider: 'TNG', sqlSchema: 'RGD_tng_udm', sqlLastTransfer: '2026-02-19 22:30:15', sqlRows: 67_400, lastSync: '2026-02-19 23:05:30', esIndex: 'tng_udm_idx', esRecords: 67_400, meta: { sqlNdids: 8_950, sqlEncounterIds: 31_200, sqlAvgCharSize: 2_340, esNdids: 8_950, esEncounterIds: 31_200, esAvgCharSize: 2_340, tableCount: 11, lastFullRefresh: '2026-02-13 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Healthy' } },
+  { date: '2026-02-19', provider: 'TNG', sqlSchema: 'tng_progress_notes', sqlLastTransfer: '2026-02-19 22:35:00', sqlRows: 89_600, lastSync: '2026-02-19 23:15:40', esIndex: 'tng_notes_idx', esRecords: 89_120, meta: { sqlNdids: 8_950, sqlEncounterIds: 33_100, sqlAvgCharSize: 5_150, esNdids: 8_920, esEncounterIds: 32_980, esAvgCharSize: 5_080, tableCount: 3, lastFullRefresh: '2026-02-13 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Delta detected' } },
+  { date: '2026-02-19', provider: 'Arizona', sqlSchema: 'RGD_arizona_udm', sqlLastTransfer: '2026-02-19 22:30:15', sqlRows: 184_320, lastSync: '2026-02-19 23:12:40', esIndex: 'arizona_udm_idx', esRecords: 183_900, meta: { sqlNdids: 22_100, sqlEncounterIds: 78_600, sqlAvgCharSize: 2_620, esNdids: 22_050, esEncounterIds: 78_340, esAvgCharSize: 2_610, tableCount: 14, lastFullRefresh: '2026-02-12 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Minor delta' } },
+  { date: '2026-02-19', provider: 'Arizona', sqlSchema: 'arizona_progress_notes', sqlLastTransfer: '2026-02-19 22:40:00', sqlRows: 265_800, lastSync: '2026-02-19 23:25:50', esIndex: 'arizona_notes_idx', esRecords: 265_800, meta: { sqlNdids: 22_100, sqlEncounterIds: 81_200, sqlAvgCharSize: 6_240, esNdids: 22_100, esEncounterIds: 81_200, esAvgCharSize: 6_240, tableCount: 4, lastFullRefresh: '2026-02-12 02:00:00', incrementalSince: '2026-02-18 22:00:00', status: 'Healthy' } },
+  { date: '2026-02-18', provider: 'MIND', sqlSchema: 'RGD_mind_udm', sqlLastTransfer: '2026-02-18 03:00:00', sqlRows: 128_500, lastSync: '2026-02-18 03:22:05', esIndex: 'mind_udm_idx', esRecords: 128_500, meta: { sqlNdids: 14_800, sqlEncounterIds: 56_200, sqlAvgCharSize: 2_250, esNdids: 14_800, esEncounterIds: 56_200, esAvgCharSize: 2_250, tableCount: 10, lastFullRefresh: '2026-02-11 02:00:00', incrementalSince: '2026-02-17 03:00:00', status: 'Healthy' } },
+  { date: '2026-02-18', provider: 'MIND', sqlSchema: 'mind_progress_notes', sqlLastTransfer: '2026-02-18 03:10:00', sqlRows: 178_300, lastSync: '2026-02-18 03:35:15', esIndex: 'mind_notes_idx', esRecords: 178_300, meta: { sqlNdids: 14_800, sqlEncounterIds: 58_900, sqlAvgCharSize: 5_520, esNdids: 14_800, esEncounterIds: 58_900, esAvgCharSize: 5_520, tableCount: 3, lastFullRefresh: '2026-02-11 02:00:00', incrementalSince: '2026-02-17 03:00:00', status: 'Healthy' } },
+  { date: '2026-02-17', provider: 'Raleigh', sqlSchema: 'RGD_raleigh_udm', sqlLastTransfer: '2026-02-17 03:00:00', sqlRows: 74_200, lastSync: '2026-02-17 03:18:30', esIndex: 'raleigh_udm_idx', esRecords: 74_200, meta: { sqlNdids: 9_600, sqlEncounterIds: 34_500, sqlAvgCharSize: 2_050, esNdids: 9_600, esEncounterIds: 34_500, esAvgCharSize: 2_050, tableCount: 9, lastFullRefresh: '2026-02-10 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Healthy' } },
+  { date: '2026-02-17', provider: 'Raleigh', sqlSchema: 'raleigh_progress_notes', sqlLastTransfer: '2026-02-17 03:05:00', sqlRows: 102_400, lastSync: '2026-02-17 03:28:40', esIndex: 'raleigh_notes_idx', esRecords: 102_400, meta: { sqlNdids: 9_600, sqlEncounterIds: 36_100, sqlAvgCharSize: 4_720, esNdids: 9_600, esEncounterIds: 36_100, esAvgCharSize: 4_720, tableCount: 3, lastFullRefresh: '2026-02-10 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Healthy' } },
+  { date: '2026-02-17', provider: 'JWM', sqlSchema: 'RGD_jwm_udm', sqlLastTransfer: '2026-02-17 03:00:00', sqlRows: 53_800, lastSync: '2026-02-17 03:14:20', esIndex: 'jwm_udm_idx', esRecords: 53_210, meta: { sqlNdids: 6_800, sqlEncounterIds: 24_100, sqlAvgCharSize: 1_940, esNdids: 6_750, esEncounterIds: 23_900, esAvgCharSize: 1_920, tableCount: 8, lastFullRefresh: '2026-02-09 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Minor delta' } },
+  { date: '2026-02-17', provider: 'JWM', sqlSchema: 'jwm_progress_notes', sqlLastTransfer: '2026-02-17 03:08:00', sqlRows: 71_500, lastSync: '2026-02-17 03:22:55', esIndex: 'jwm_notes_idx', esRecords: 71_500, meta: { sqlNdids: 6_800, sqlEncounterIds: 25_400, sqlAvgCharSize: 4_380, esNdids: 6_800, esEncounterIds: 25_400, esAvgCharSize: 4_380, tableCount: 3, lastFullRefresh: '2026-02-09 02:00:00', incrementalSince: '2026-02-16 03:00:00', status: 'Healthy' } },
 ];
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -249,14 +249,14 @@ export function ProjectsPage() {
             <div
               key={project.id}
               className="group relative flex flex-col rounded-xl border bg-card transition-shadow hover:shadow-lg cursor-pointer"
-              onClick={() => navigate(`/projects/${project.id}/criteria`)}
+              onClick={() => navigate(project.flowType === 'ct' || project.types.includes('CT') ? `/projects/${project.id}/ct-overview` : `/projects/${project.id}/criteria`)}
             >
               {/* Top row */}
               <div className="flex items-center justify-between px-4 pt-4">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <ClientTag name={clientName} />
                   {project.types.map((t, idx) => (
-                    <Badge key={`${t}-${idx}`} variant={t === 'RWE' ? 'processing' : 'warning'} className="rounded-full px-2.5 py-0.5 text-[10px] font-bold">{t}</Badge>
+                    <Badge key={`${t}-${idx}`} variant={t === 'RWE' ? 'processing' : t === 'CT' ? 'default' : 'warning'} className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${t === 'CT' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0' : ''}`}>{t}</Badge>
                   ))}
                 </div>
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -271,7 +271,7 @@ export function ProjectsPage() {
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
                         <div className="absolute right-0 top-8 z-50 w-44 rounded-xl border bg-popover p-1 shadow-xl">
-                          <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent cursor-pointer" onClick={() => { navigate(`/projects/${project.id}/criteria`); setOpenMenu(null); }}>
+                          <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent cursor-pointer" onClick={() => { navigate(project.flowType === 'ct' || project.types.includes('CT') ? `/projects/${project.id}/ct-overview` : `/projects/${project.id}/criteria`); setOpenMenu(null); }}>
                             <FolderOpen className="h-3.5 w-3.5" /> Open
                           </button>
                           <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent cursor-pointer" onClick={() => { void dupProject(project.id); setOpenMenu(null); }}>
@@ -461,8 +461,8 @@ export function ProjectsPage() {
                                       <p className="font-bold">{row.meta.tableCount}</p>
                                     </div>
                                     <div className="rounded-lg border p-2">
-                                      <p className="text-muted-foreground text-[10px]">Avg Row Size</p>
-                                      <p className="font-bold">{row.meta.avgRowSize}</p>
+                                      <p className="text-muted-foreground text-[10px]">Avg Character Size</p>
+                                      <p className="font-bold tabular-nums">{row.meta.sqlAvgCharSize.toLocaleString()}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -478,10 +478,14 @@ export function ProjectsPage() {
                                       <p className="font-bold tabular-nums">{row.meta.esEncounterIds.toLocaleString()}</p>
                                     </div>
                                     <div className="rounded-lg border p-2">
+                                      <p className="text-muted-foreground text-[10px]">Avg Character Size</p>
+                                      <p className="font-bold tabular-nums">{row.meta.esAvgCharSize.toLocaleString()}</p>
+                                    </div>
+                                    <div className="rounded-lg border p-2">
                                       <p className="text-muted-foreground text-[10px]">Last Full Refresh</p>
                                       <p className="font-bold text-[11px]">{row.meta.lastFullRefresh}</p>
                                     </div>
-                                    <div className="rounded-lg border p-2">
+                                    <div className="rounded-lg border p-2 col-span-2">
                                       <p className="text-muted-foreground text-[10px]">Incremental Since</p>
                                       <p className="font-bold text-[11px]">{row.meta.incrementalSince}</p>
                                     </div>
@@ -633,7 +637,7 @@ export function ProjectsPage() {
                           <div
                             key={p.id}
                             className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs hover:bg-muted/30 cursor-pointer transition-colors"
-                            onClick={() => { setClientSheetOpen(false); navigate(`/projects/${p.id}/criteria`); }}
+                            onClick={() => { setClientSheetOpen(false); navigate(p.flowType === 'ct' || p.types.includes('CT') ? `/projects/${p.id}/ct-overview` : `/projects/${p.id}/criteria`); }}
                           >
                             <span className="font-medium truncate">{p.name}</span>
                             <div className="flex items-center gap-1.5">

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
 import type { ReviewItem } from '@/types';
 import { Card } from '@/components/ui/card';
@@ -12,9 +13,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Dialog } from '@/components/ui/dialog';
+import { EligibilityMatrix } from '@/components/ct/EligibilityMatrix';
 import {
   AlertCircle,
+  ArrowLeft,
   BookOpen,
+  Maximize2,
+  Minimize2,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -24,6 +29,7 @@ import {
   Download,
   Filter,
   Flag,
+  Grid3x3,
   MessageSquare,
   Minus,
   PanelLeftClose,
@@ -40,6 +46,18 @@ import {
 type PatientSummary = { serial: number; patientId: string; encounters: ReviewItem[]; status: string; decision: string; assignedTo: string[] };
 
 const NEURO_EVIDENCE: Record<string, { green: string[]; red: string[]; neutral: string[] }> = {
+  'Kisunla Discontinuation': {
+    green: [
+      'Patient received donanemab (Kisunla) 700mg IV infusions per ALZH-12681 protocol. Treatment discontinued on 2025-10-14 after surveillance MRI showed ARIA-E in right parietal region. Dr. Patel documented: "Discontinuing Kisunla due to ARIA risk profile — patient informed and agrees with clinical decision to cease therapy."',
+      'Pharmacy records confirm donanemab infusion schedule terminated effective 2025-10-14. Reason code: ADVERSE-IMAGING. Prior 3 infusions completed without incident. Discontinuation letter sent to patient and referring neurologist.',
+    ],
+    red: [
+      'Progress note from 2025-08-20: "Patient tolerating Kisunla infusions well. No ARIA findings on interim MRI. Plan to continue q4w schedule per protocol." — No discontinuation documented at this earlier encounter.',
+    ],
+    neutral: [
+      'Neurology follow-up 2025-11-10: Post-discontinuation monitoring visit. MRI shows resolving ARIA-E signal. Cognitive status stable, MMSE 22/30. Patient transitioned to supportive care with donepezil 10mg daily. No new neurological symptoms reported.',
+    ],
+  },
   'Migraine frequency ≥ 4 episodes/month': {
     green: ['Patient reports 6 migraine episodes per month with aura over the past 4 months. Headache diary confirms frequency.', 'Triptan usage recorded 5-7 times monthly. CGRP inhibitor prescribed as prophylaxis indicating high-frequency migraine.'],
     red: ['Headache frequency documented as 2-3 episodes/month in most recent neurology follow-up. Below inclusion threshold.'],
@@ -68,6 +86,39 @@ const NEURO_EVIDENCE: Record<string, { green: string[]; red: string[]; neutral: 
 };
 
 const NEURO_FULLTEXT: Record<string, string> = {
+  'Kisunla Discontinuation': `Encounter date: 2025-10-14T00:00:00
+Category: Clinical Notes  Note Type: ChiefComplaint
+Note content: IV Kisunla Discontinuation  Note Source: encounterdata
+Note Type: notes  Note content: ALZH-12681 Kisunla (donanemab) — Treatment Discontinuation
+
+2025-10-14T00:00:00 Category: Visit Detail  Type: 1
+Start Date: 2025-10-14  End Date: 2025-10-14
+Reason: Kisunla discontinuation — ARIA-E finding  Location: FCN Neurology  Admission: KIS-DISC-001
+
+Encounter summary: 68-year-old female presents to neurology clinic for donanemab (Kisunla) treatment review. Patient has been receiving Kisunla 700mg IV q4w infusions since 2025-06-10 as part of anti-amyloid therapy for early Alzheimer disease.
+
+Surveillance MRI brain dated 2025-10-10 revealed new ARIA-E signal in right parietal region (edema/effusion pattern). No ARIA-H (microhemorrhages) identified. Prior MRI from 2025-08-15 was negative for ARIA findings.
+
+Clinical decision: DISCONTINUE donanemab (Kisunla) therapy effective immediately. Rationale: ARIA-E finding per surveillance imaging protocol. Risk of continued infusion outweighs benefit given imaging findings.
+
+Discussion with patient: Risks and benefits of discontinuation reviewed. Patient understands rationale and agrees with clinical decision. Questions addressed regarding long-term prognosis and alternative treatment options.
+
+Current medications: Donepezil 10mg daily (continue), Memantine 10mg BID (continue), Atorvastatin 20mg daily. Kisunla — DISCONTINUED.
+
+Plan:
+1. Discontinue donanemab (Kisunla) infusions permanently
+2. Repeat MRI brain in 4 weeks to monitor ARIA-E resolution
+3. Continue donepezil and memantine for symptomatic management
+4. Neuropsychological follow-up in 3 months
+5. Notify referring physician and pharmacy of treatment cessation
+
+Physical examination: Alert and oriented x3. Cranial nerves II-XII intact. No focal deficits. No headache or visual symptoms suggestive of symptomatic ARIA.
+
+Vitals: BP 128/76, HR 68, Temp 98.2°F
+Weight: 62kg, BMI: 24.2
+
+Attending: Dr. Ravi Patel, MD — Board Certified Neurologist
+FCN Department of Neurology`,
   'Migraine frequency ≥ 4 episodes/month': `Encounter date: 2024-11-17T00:00:00
 Category: Clinical Notes  Note Type: ChiefComplaint
 Note content: IV Kisunla Note Source: encounterdata
@@ -148,25 +199,103 @@ const LINES_PER_PAGE = 15;
 
 /* ─── component ─── */
 export function ReviewPage() {
-  const { reviewItems, currentUser, users, saveDecision, saveAssignment, editComment, toggleItemFlag } = useAppContext();
+  const { reviewItems: allReviewItems, currentUser, users, saveDecision, saveAssignment, editComment, toggleItemFlag, projects, cohortImports } = useAppContext();
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlCriterion = searchParams.get('criterion');
+
+  /* ── CT switcher: users can change the criterion/atom filter from the page ── */
+  const [ctViewMode, setCtViewMode] = useState<'criterion' | 'atom'>('criterion');
+  const [criterionFilterState, setCriterionFilterState] = useState<string | null>(urlCriterion);
+  const criterionFilter = criterionFilterState;
+
+  /* Keep URL in sync so refreshes retain the filter */
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (criterionFilterState) next.set('criterion', criterionFilterState);
+    else next.delete('criterion');
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criterionFilterState]);
+
+  const [matrixOpen, setMatrixOpen] = useState(false);
+
+  const currentProject = projects.find((p) => p.id === projectId);
+  const isCTContext = currentProject?.flowType === 'ct';
+  const ctCohort = useMemo(
+    () => (isCTContext ? cohortImports.find((c) => c.id === currentProject?.cohortImportId) : undefined),
+    [cohortImports, currentProject?.cohortImportId, isCTContext],
+  );
+
+  /* Build criterion + atom option lists for the switcher */
+  const criterionOptions = useMemo(() => {
+    if (!ctCohort) return [] as { id: string; name: string; type: 'inclusion' | 'exclusion' }[];
+    return ctCohort.criteria.map((c) => ({ id: c.id, name: c.name, type: c.type }));
+  }, [ctCohort]);
+
+  const atomOptions = useMemo(() => {
+    if (!ctCohort) return [] as { id: string; label: string; parentName: string; parentType: 'inclusion' | 'exclusion' }[];
+    return ctCohort.criteria.flatMap((c) =>
+      c.atoms.map((a) => ({ id: a.id, label: a.label, parentName: c.name, parentType: c.type })),
+    );
+  }, [ctCohort]);
+
+  // For CT projects: filter to this project's review items + the specific criterion
+  // For RWE projects: use all review items (existing behavior)
+  const reviewItems = useMemo(() => {
+    if (isCTContext) {
+      let items = allReviewItems.filter((ri) => ri.projectId === projectId);
+      if (criterionFilter) {
+        items = items.filter((ri) => ri.criterionName === criterionFilter);
+      }
+      return items;
+    }
+    // For RWE: if there are items tagged with this projectId, filter to those
+    const projectItems = allReviewItems.filter((ri) => ri.projectId === projectId);
+    if (projectItems.length > 0) return projectItems;
+    return allReviewItems;
+  }, [allReviewItems, isCTContext, projectId, criterionFilter]);
 
   const [leftOpen, setLeftOpen] = useState(true);
   const [notepadOpen, setNotepadOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [validationTab, setValidationTab] = useState<'all' | 'manual' | 'auto'>('all');
   const [assignedFilter, setAssignedFilter] = useState<'all' | 'mine'>('all');
   const [search, setSearch] = useState('');
-  const [selectedEnc, setSelectedEnc] = useState('ENC-883100');
+  const [selectedEnc, setSelectedEnc] = useState(() => {
+    // For CT context, default to first filtered item
+    if (isCTContext && reviewItems.length > 0) return reviewItems[0].encounterId;
+    // For RWE with project-specific items, default to first project item
+    const projItems = allReviewItems.filter((ri) => ri.projectId === projectId);
+    if (projItems.length > 0) return projItems[0].encounterId;
+    return 'ENC-883100';
+  });
+
+  // Keep selected encounter valid when CT criterion filter changes
+  useEffect(() => {
+    if (isCTContext && reviewItems.length > 0) {
+      const stillValid = reviewItems.find((r) => r.encounterId === selectedEnc);
+      if (!stillValid) setSelectedEnc(reviewItems[0].encounterId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criterionFilter, projectId, isCTContext]);
   const [viewMode, setViewMode] = useState<'snips' | 'text'>('snips');
   const [sessionNotes, setSessionNotes] = useState('');
   const [reason, setReason] = useState('');
   const [comment, setComment] = useState('');
   const [showError, setShowError] = useState(false);
   const [groupByPatient, setGroupByPatient] = useState(true);
-  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set(['PT-10211']));
+  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(() => {
+    const projItems = allReviewItems.filter((ri) => ri.projectId === projectId);
+    if (projItems.length > 0) return new Set([projItems[0].patientId]);
+    return new Set(['PT-10211']);
+  });
 
   // Full text search
   const [textSearch, setTextSearch] = useState('');
+  const [snipSearch, setSnipSearch] = useState('');
 
   // Full text pagination
   const [textPage, setTextPage] = useState(0);
@@ -258,8 +387,26 @@ export function ReviewPage() {
   const autoCount = reviewItems.filter(isAutoValidated).length;
   const manualCount = reviewItems.length - autoCount;
 
-  const evidence = sel ? (NEURO_EVIDENCE[sel.criterionName] ?? { green: [], red: [], neutral: [] }) : { green: [], red: [], neutral: [] };
-  const fullText = sel ? (NEURO_FULLTEXT[sel.criterionName] ?? '') : '';
+  // For CT context: each ReviewItem has its own evidence text. For RWE: use static lookups by criterion name.
+  const evidence = useMemo(() => {
+    if (!sel) return { green: [], red: [], neutral: [] };
+    if (isCTContext && sel.evidenceText) {
+      // CT items have a single block of evidence text imported from Cohort Builder
+      const isSupport = sel.llmEligibility === 'Eligible';
+      return {
+        green: isSupport ? [sel.evidenceText] : [],
+        red: !isSupport ? [sel.evidenceText] : [],
+        neutral: [],
+      };
+    }
+    return NEURO_EVIDENCE[sel.criterionName] ?? { green: [], red: [], neutral: [] };
+  }, [sel, isCTContext]);
+
+  const fullText = useMemo(() => {
+    if (!sel) return '';
+    if (isCTContext && sel.evidenceText) return sel.evidenceText;
+    return NEURO_FULLTEXT[sel.criterionName] ?? '';
+  }, [sel, isCTContext]);
 
   // Full text: when searching, show all text (no pagination) so highlights are visible; paginate only when not searching
   const fullTextLines = useMemo(() => fullText.split('\n'), [fullText]);
@@ -333,7 +480,99 @@ export function ReviewPage() {
   };
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100vh-130px)]">
+    <div className={fullscreen ? 'fixed inset-0 z-50 bg-background flex flex-col gap-2 p-4 overflow-auto' : 'flex flex-col gap-2 h-[calc(100vh-130px)]'}>
+      {/* ─── CT CONTEXT BANNER ─── */}
+      {isCTContext && (
+        <div className="flex items-center justify-between rounded-xl border-2 border-primary/40 bg-primary/5 px-4 py-2.5 flex-wrap gap-y-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => navigate(`/projects/${projectId}/ct-overview`)}
+              className="flex items-center gap-1.5 rounded-lg border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="text-[9px] px-2 py-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">CT</Badge>
+                <span className="text-xs font-semibold">{currentProject?.name}</span>
+              </div>
+              {criterionFilter && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Reviewing: <span className="font-bold">{criterionFilter}</span>
+                  {ctViewMode === 'atom' && <span className="ml-1 italic">(atom view)</span>}
+                </p>
+              )}
+            </div>
+
+            {/* View switcher: Criteria vs Atoms */}
+            <div className="flex items-center gap-1 rounded-lg border bg-background p-0.5">
+              {(['criterion', 'atom'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setCtViewMode(mode)}
+                  className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition-colors cursor-pointer ${
+                    viewMode === mode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {mode === 'criterion' ? 'By Criterion' : 'By Atom'}
+                </button>
+              ))}
+            </div>
+
+            {/* Dropdown */}
+            {ctViewMode === 'criterion' ? (
+              <select
+                value={criterionFilter ?? ''}
+                onChange={(e) => setCriterionFilterState(e.target.value || null)}
+                className="h-8 rounded-lg border bg-background px-2 text-xs font-medium cursor-pointer max-w-[300px]"
+              >
+                <option value="">All criteria</option>
+                {criterionOptions.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.type === 'inclusion' ? '[INC] ' : '[EXC] '}
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={criterionFilter ?? ''}
+                onChange={(e) => setCriterionFilterState(e.target.value || null)}
+                className="h-8 rounded-lg border bg-background px-2 text-xs font-medium cursor-pointer max-w-[320px]"
+              >
+                <option value="">All atoms</option>
+                {atomOptions.map((a) => (
+                  <option key={a.id} value={a.parentName}>
+                    {a.parentType === 'inclusion' ? '[INC] ' : '[EXC] '}
+                    {a.label} <span>— {a.parentName}</span>
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="text-xs text-muted-foreground">
+              {reviewed === reviewItems.length && reviewItems.length > 0 ? (
+                <span className="font-semibold text-emerald-600">All {reviewItems.length} encounters reviewed</span>
+              ) : (
+                <span>{reviewed}/{reviewItems.length} reviewed</span>
+              )}
+            </div>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMatrixOpen(true)}>
+              <Grid3x3 className="h-3.5 w-3.5 mr-1" /> Patient Eligibility Matrix
+            </Button>
+            <button
+              onClick={() => setFullscreen((s) => !s)}
+              className="flex items-center gap-1.5 rounded-lg border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted cursor-pointer"
+              title={fullscreen ? 'Exit fullscreen' : 'Expand to fullscreen'}
+            >
+              {fullscreen ? <><Minimize2 className="h-3.5 w-3.5" /> Exit</> : <><Maximize2 className="h-3.5 w-3.5" /> Fullscreen</>}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── 1. COLLAPSIBLE STATS ACCORDION ─── */}
       <div className="rounded-xl border bg-card">
         <button onClick={() => setStatsOpen((s) => !s)} className="flex w-full items-center justify-between px-4 py-2 cursor-pointer hover:bg-muted/30 transition-colors">
@@ -511,7 +750,7 @@ export function ReviewPage() {
                       ]).map((tab) => (
                         <button
                           key={tab.key}
-                          onClick={() => { setViewMode(tab.key); setTextPage(0); setTextSearch(''); }}
+                          onClick={() => { setViewMode(tab.key); setTextPage(0); setTextSearch(''); setSnipSearch(''); }}
                           className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-all cursor-pointer ${viewMode === tab.key ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                         >
                           {tab.label}
@@ -542,19 +781,39 @@ export function ReviewPage() {
                       {isTextSearchActive && <span className="text-[9px] text-muted-foreground shrink-0">Showing all lines (search active)</span>}
                     </div>
                   )}
+
+                  {/* Evidence snips search bar */}
+                  {viewMode === 'snips' && (
+                    <div className="flex items-center gap-2">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <Input value={snipSearch} onChange={(e) => setSnipSearch(e.target.value)} placeholder="Search in evidence snips..." className="h-7 text-xs flex-1" />
+                      {snipSearch && (
+                        <button onClick={() => setSnipSearch('')} className="text-muted-foreground hover:text-foreground cursor-pointer"><X className="h-3 w-3" /></button>
+                      )}
+                      {snipSearch.trim() && <span className="text-[9px] text-muted-foreground shrink-0">Filtering snippets</span>}
+                    </div>
+                  )}
                 </div>
 
                 {/* Scrollable content */}
                 <div className="flex-1 overflow-y-auto">
                   <div className="p-4">
-                    {viewMode === 'snips' && (
-                      <div className="space-y-2">
-                        {evidence.green.map((t, i) => <div key={`g${i}`} className="rounded-lg border-l-4 border-emerald-500 bg-emerald-500/5 p-3 text-xs leading-relaxed">{hl(t, search)}</div>)}
-                        {evidence.red.map((t, i) => <div key={`r${i}`} className="rounded-lg border-l-4 border-red-500 bg-red-500/5 p-3 text-xs leading-relaxed">{hl(t, search)}</div>)}
-                        {evidence.neutral.map((t, i) => <div key={`n${i}`} className="rounded-lg border-l-4 border-gray-400 bg-muted/30 p-3 text-xs leading-relaxed">{hl(t, search)}</div>)}
-                        {evidence.green.length === 0 && evidence.red.length === 0 && evidence.neutral.length === 0 && <p className="text-[10px] text-muted-foreground italic text-center py-6">No evidence snips available.</p>}
-                      </div>
-                    )}
+                    {viewMode === 'snips' && (() => {
+                      const sq = snipSearch.trim().toLowerCase();
+                      const greens = sq ? evidence.green.filter(t => t.toLowerCase().includes(sq)) : evidence.green;
+                      const reds = sq ? evidence.red.filter(t => t.toLowerCase().includes(sq)) : evidence.red;
+                      const neutrals = sq ? evidence.neutral.filter(t => t.toLowerCase().includes(sq)) : evidence.neutral;
+                      const total = greens.length + reds.length + neutrals.length;
+                      const hlQuery = snipSearch.trim() || search;
+                      return (
+                        <div className="space-y-2">
+                          {greens.map((t, i) => <div key={`g${i}`} className="rounded-lg border-l-4 border-emerald-500 bg-emerald-500/5 p-3 text-xs leading-relaxed">{hl(t, hlQuery)}</div>)}
+                          {reds.map((t, i) => <div key={`r${i}`} className="rounded-lg border-l-4 border-red-500 bg-red-500/5 p-3 text-xs leading-relaxed">{hl(t, hlQuery)}</div>)}
+                          {neutrals.map((t, i) => <div key={`n${i}`} className="rounded-lg border-l-4 border-gray-400 bg-muted/30 p-3 text-xs leading-relaxed">{hl(t, hlQuery)}</div>)}
+                          {total === 0 && <p className="text-[10px] text-muted-foreground italic text-center py-6">{sq ? `No snippets match "${snipSearch}".` : 'No evidence snips available.'}</p>}
+                        </div>
+                      );
+                    })()}
 
                     {viewMode === 'text' && (
                       <>
@@ -953,6 +1212,21 @@ export function ReviewPage() {
           )}
         </div>
       </Dialog>
+
+      {/* ── Patient Eligibility Matrix (CT only) ── */}
+      {isCTContext && ctCohort && (
+        <Dialog
+          open={matrixOpen}
+          onClose={() => setMatrixOpen(false)}
+          title="Patient Eligibility Matrix"
+          description={`All patients × criteria for ${currentProject?.name ?? 'this cohort'}`}
+          fullscreen
+        >
+          <div className="h-full">
+            <EligibilityMatrix cohort={ctCohort} reviewItems={allReviewItems.filter((ri) => ri.projectId === projectId)} height="100%" />
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

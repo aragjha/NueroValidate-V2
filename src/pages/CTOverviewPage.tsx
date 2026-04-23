@@ -13,10 +13,11 @@ import {
 } from '@/components/vault/shared';
 import { StatusRollup, worstStatus } from '@/components/ct/StatusRollup';
 import { Badge } from '@/components/ui/badge';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Brain, ChevronRight, Circle, Database, FlaskConical,
-  HeartPulse, Layers, Pill, Scissors, Search, Stethoscope, TestTubes, Users, XCircle,
+  ArrowLeft, Brain, ChevronDown, ChevronRight, ChevronUp, Circle, Database, Eye, FlaskConical,
+  HeartPulse, Inbox, Layers, Pill, Play, Scissors, Search, Stethoscope, TestTubes, Users, XCircle,
 } from 'lucide-react';
 
 /* ── Category metadata ── */
@@ -57,11 +58,6 @@ function MixednessDot({ mixedness }: { mixedness: CriterionRowData['mixedness'] 
 /* ── Segmented control view modes ── */
 
 type ViewSegment = 'all' | 'structured' | 'unstructured';
-const VIEW_SEGMENTS: { key: ViewSegment; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'structured', label: 'Structured' },
-  { key: 'unstructured', label: 'Unstructured' },
-];
 
 /* ── Local filter state (not URL-synced) ── */
 
@@ -69,12 +65,14 @@ type LocalFilters = {
   q: string;
   view: ViewSegment;
   cat: string | null;
+  status: 'all' | 'not-started' | 'in-progress' | 'reviewed';
 };
 
 const INITIAL_FILTERS: LocalFilters = {
   q: '',
-  view: 'unstructured',
+  view: 'all',
   cat: null,
+  status: 'all',
 };
 
 /* ── Helpers ── */
@@ -205,9 +203,89 @@ export function CTOverviewPage() {
     return applyCriterionFilters(criterionRows, sharedFilters);
   }, [criterionRows, filters]);
 
+  /* ── Unstructured atoms (Review Queue) ── */
+  type AtomTask = {
+    id: string;
+    label: string;
+    parentCriterionId: string;
+    parentCriterionName: string;
+    parentCriterionType: 'inclusion' | 'exclusion';
+    category: string;
+    totalPatients: number;
+    reviewed: number;
+    status: 'not-started' | 'in-progress' | 'reviewed';
+  };
+
+  const reviewQueue = useMemo<AtomTask[]>(() => {
+    const tasks: AtomTask[] = atomRows
+      .filter((a) => a.dataSource === 'unstructured')
+      .map((a) => {
+        const patientsToReview = a.noUnstructured + a.unknown;
+        const riForCrit = reviewItems.filter(
+          (ri) => ri.projectId === projectId && ri.criterionName === a.parentCriterionName,
+        );
+        const reviewed = riForCrit.filter((ri) => ri.decision !== undefined).length;
+        const totalPatients = Math.max(patientsToReview, riForCrit.length);
+        const status: AtomTask['status'] = totalPatients === 0 || reviewed >= totalPatients
+          ? 'reviewed'
+          : reviewed > 0
+            ? 'in-progress'
+            : 'not-started';
+        return {
+          id: a.id,
+          label: a.label,
+          parentCriterionId: a.parentCriterionId,
+          parentCriterionName: a.parentCriterionName,
+          parentCriterionType: a.parentCriterionType,
+          category: a.category,
+          totalPatients,
+          reviewed,
+          status,
+        };
+      });
+
+    // Filter
+    const q = filters.q.trim().toLowerCase();
+    let out = tasks.filter((t) => {
+      if (filters.cat && t.category !== filters.cat) return false;
+      if (filters.status !== 'all' && t.status !== filters.status) return false;
+      if (!q) return true;
+      return (
+        t.label.toLowerCase().includes(q) ||
+        t.parentCriterionName.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q)
+      );
+    });
+    // Sort: not-started → in-progress → reviewed
+    const order: Record<AtomTask['status'], number> = { 'not-started': 0, 'in-progress': 1, reviewed: 2 };
+    out = [...out].sort((a, b) => order[a.status] - order[b.status]);
+    return out;
+  }, [atomRows, reviewItems, projectId, filters]);
+
+  /* ── Structured atoms (auto-validated) ── */
+  const structuredAtoms = useMemo(() => {
+    return atomRows.filter((a) => a.dataSource === 'structured');
+  }, [atomRows]);
+
+  const queueCounts = useMemo(() => {
+    const total = reviewQueue.length;
+    const notStarted = reviewQueue.filter((t) => t.status === 'not-started').length;
+    const inProgress = reviewQueue.filter((t) => t.status === 'in-progress').length;
+    const reviewed = reviewQueue.filter((t) => t.status === 'reviewed').length;
+    return { total, notStarted, inProgress, reviewed };
+  }, [reviewQueue]);
+
+  const [structuredOpen, setStructuredOpen] = useState(false);
+  const [structuredAtomSheetId, setStructuredAtomSheetId] = useState<string | null>(null);
+
+  const structuredAtomInSheet = useMemo(
+    () => (structuredAtomSheetId ? atomRows.find((a) => a.id === structuredAtomSheetId) ?? null : null),
+    [structuredAtomSheetId, atomRows],
+  );
+
   /* ── Active filter check ── */
   const hasActiveFilters =
-    filters.q !== '' || filters.view !== 'unstructured' || filters.cat !== null;
+    filters.q !== '' || filters.view !== 'all' || filters.cat !== null || filters.status !== 'all';
 
   const clearFilters = () => setFilters(INITIAL_FILTERS);
 
@@ -322,178 +400,301 @@ export function CTOverviewPage() {
         <ReviewSummary title="Review Dashboard" rows={reviewRows} />
       )}
 
-      {/* ── Filter Bar ── */}
-      <div className="rounded-xl border bg-card px-5 py-4 space-y-3">
-        {/* Row 1: search + segmented control */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={filters.q}
-              onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
-              placeholder="Search criteria, categories..."
-              className="pl-9 h-9 text-sm"
-            />
+      {/* ═══ YOUR REVIEW QUEUE — Primary section ═══ */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Inbox className="h-5 w-5 text-amber-600" />
+            <h2 className="text-lg font-bold">Your Review Queue</h2>
+            <Badge variant="warning" className="text-[10px]">{queueCounts.total} unstructured atom{queueCounts.total !== 1 ? 's' : ''}</Badge>
           </div>
-          {/* Segmented control */}
-          <div className="flex rounded-lg border overflow-hidden">
-            {VIEW_SEGMENTS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilters((f) => ({ ...f, view: key }))}
-                className={`px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors ${
-                  filters.view === key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span><span className="font-semibold text-foreground">{queueCounts.notStarted}</span> not started</span>
+            <span>·</span>
+            <span><span className="font-semibold text-foreground">{queueCounts.inProgress}</span> in progress</span>
+            <span>·</span>
+            <span><span className="font-semibold text-emerald-600">{queueCounts.reviewed}</span> reviewed</span>
           </div>
         </div>
 
-        {/* Row 2: category chips + clear */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {categories.map((cat) => {
-            const m = getCategoryMeta(cat);
-            const active = filters.cat === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setFilters((f) => ({ ...f, cat: active ? null : cat }))}
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold cursor-pointer border transition-colors ${
-                  active
-                    ? `${m.bgColor} ${m.color} border-current`
-                    : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                }`}
-              >
-                {m.icon} {cat}
-              </button>
-            );
-          })}
-
-          {hasActiveFilters && (
-            <>
-              <div className="h-4 w-px bg-border mx-1" />
-              <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold text-red-500 hover:bg-red-500/10 cursor-pointer"
-              >
-                <XCircle className="h-3 w-3" /> Clear
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── Criteria Cards ── */}
-      <div className="space-y-3">
-        {filteredRows.map((row) => {
-          const isAllStr = row.mixedness === 'all-structured';
-          const borderCls = isAllStr
-            ? 'border-blue-200 dark:border-blue-800'
-            : row.mixedness === 'mixed'
-            ? 'border-indigo-200 dark:border-indigo-800'
-            : 'border-amber-200 dark:border-amber-800';
-          const bgCls = isAllStr
-            ? 'bg-blue-50/30 dark:bg-blue-950/20'
-            : row.mixedness === 'mixed'
-            ? 'bg-indigo-50/30 dark:bg-indigo-950/20'
-            : 'bg-amber-50/30 dark:bg-amber-950/20';
-          const catMeta = getCategoryMeta(row.category);
-
-          return (
-            <button
-              key={row.id}
-              onClick={() => nav(`/projects/${projectId}/ct-criteria/${row.id}`)}
-              className={`w-full rounded-xl border ${borderCls} ${bgCls} p-4 text-left cursor-pointer hover:shadow-md transition-shadow group`}
+        {/* Filter bar */}
+        <div className="rounded-xl border bg-card px-4 py-3 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={filters.q}
+                onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+                placeholder="Search atoms, criteria, categories…"
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value as LocalFilters['status'] }))}
+              className="rounded-md border bg-background px-3 py-2 text-xs font-medium cursor-pointer"
             >
-              <div className="flex items-start justify-between gap-4">
-                {/* Left side */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <MixednessDot mixedness={row.mixedness} />
-                    <span className="text-xs font-bold text-muted-foreground">C{row.index}</span>
-                    <Badge
-                      variant={row.type === 'inclusion' ? 'success' : 'destructive'}
-                      className="text-[9px] px-1.5 py-0"
-                    >
-                      {row.type === 'inclusion' ? 'INC' : 'EXC'}
-                    </Badge>
-                    <span className="text-sm font-semibold truncate">{row.name}</span>
-                  </div>
-
-                  {/* Category badge */}
-                  <div className="mt-2">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${catMeta.bgColor} ${catMeta.color}`}
-                    >
-                      {catMeta.icon} {row.category}
-                    </span>
-                  </div>
-
-                  {/* Atom breakdown */}
-                  <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground">
-                    <span>{row.atoms.length} atom{row.atoms.length !== 1 ? 's' : ''}</span>
-                    <span>&middot;</span>
-                    <span className="text-blue-600">{row.structuredAtoms.length} structured</span>
-                    <span>/</span>
-                    <span className="text-amber-600">{row.unstructuredAtoms.length} unstructured</span>
-                  </div>
-                </div>
-
-                {/* Right side */}
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  {/* StatusRollup */}
-                  <StatusRollup
-                    status={row.status}
-                    completed={row.atoms.filter((a) => a.status === 'auto-validated').length}
-                    total={row.atoms.length}
-                    label="atoms"
-                  />
-
-                  {/* Progress bar */}
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          row.pctComplete >= 100
-                            ? 'bg-emerald-500'
-                            : isAllStr
-                            ? 'bg-blue-500'
-                            : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${row.pctComplete}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
-                      {row.pctComplete}%
-                    </span>
-                  </div>
-
-                  {/* Chevron */}
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                </div>
-              </div>
-            </button>
-          );
-        })}
-
-        {filteredRows.length === 0 && (
-          <div className="rounded-xl border bg-card px-5 py-12 text-center space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">No criteria match your filters.</p>
+              <option value="all">Status: All</option>
+              <option value="not-started">Not started</option>
+              <option value="in-progress">In progress</option>
+              <option value="reviewed">Reviewed</option>
+            </select>
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="text-xs text-primary underline cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-red-500 hover:bg-red-500/10 cursor-pointer"
               >
-                Clear filters
+                <XCircle className="h-3 w-3" /> Clear
               </button>
             )}
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {categories.map((cat) => {
+              const m = getCategoryMeta(cat);
+              const active = filters.cat === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setFilters((f) => ({ ...f, cat: active ? null : cat }))}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold cursor-pointer border transition-colors ${
+                    active
+                      ? `${m.bgColor} ${m.color} border-current`
+                      : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
+                  }`}
+                >
+                  {m.icon} {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Queue cards */}
+        <div className="space-y-2">
+          {reviewQueue.length === 0 ? (
+            <div className="rounded-xl border bg-card px-5 py-12 text-center space-y-2">
+              <Inbox className="h-8 w-8 mx-auto text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">
+                {queueCounts.total === 0 ? 'No unstructured atoms in this project — nothing to review.' : 'No atoms match your filters.'}
+              </p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-xs text-primary underline cursor-pointer">
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            reviewQueue.map((task) => {
+              const catMeta = getCategoryMeta(task.category);
+              const pct = task.totalPatients > 0 ? Math.round((task.reviewed / task.totalPatients) * 100) : 0;
+              const statusColor = task.status === 'reviewed' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-500' : 'bg-muted-foreground/40';
+              const cta = task.status === 'reviewed' ? 'View review' : task.status === 'in-progress' ? 'Continue review' : 'Start review';
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => nav(`/projects/${projectId}/ct-criteria/${task.parentCriterionId}`)}
+                  className="w-full rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/20 dark:bg-amber-950/10 p-4 text-left cursor-pointer hover:shadow-md transition-shadow group flex items-start gap-3"
+                >
+                  <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${statusColor}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={task.parentCriterionType === 'inclusion' ? 'success' : 'destructive'} className="text-[9px] px-1.5 py-0">
+                        {task.parentCriterionType === 'inclusion' ? 'INC' : 'EXC'}
+                      </Badge>
+                      <span className="text-[11px] text-muted-foreground font-medium truncate">{task.parentCriterionName}</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm font-semibold truncate">{task.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${catMeta.bgColor} ${catMeta.color}`}>
+                        {catMeta.icon} {task.category}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {task.reviewed} / {task.totalPatients} patients reviewed
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${pct === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] font-bold tabular-nums text-muted-foreground w-8 text-right">{pct}%</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary group-hover:underline">
+                      <Play className="h-3 w-3" /> {cta}
+                    </span>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      {/* ═══ Secondary: Structured atoms (auto-validated) ═══ */}
+      {structuredAtoms.length > 0 && (
+        <section className="space-y-2">
+          <button
+            onClick={() => setStructuredOpen((v) => !v)}
+            className="w-full flex items-center justify-between rounded-xl border bg-blue-50/30 dark:bg-blue-950/10 border-blue-200 dark:border-blue-800/40 px-4 py-3 text-left cursor-pointer hover:bg-blue-50/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              {structuredOpen ? <ChevronUp className="h-4 w-4 text-blue-700 dark:text-blue-400" /> : <ChevronDown className="h-4 w-4 text-blue-700 dark:text-blue-400" />}
+              <span className="text-sm font-bold text-blue-700 dark:text-blue-400">Auto-validated (structured)</span>
+              <Badge variant="processing" className="text-[10px]">{structuredAtoms.length} atom{structuredAtoms.length !== 1 ? 's' : ''}</Badge>
+              <span className="text-[11px] text-blue-700/70 dark:text-blue-400/70 italic ml-1">no review needed</span>
+            </div>
+          </button>
+          {structuredOpen && (
+            <div className="rounded-xl border bg-card overflow-hidden divide-y">
+              {structuredAtoms.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => setStructuredAtomSheetId(a.id)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/30 transition-colors cursor-pointer"
+                >
+                  <Badge variant={a.parentCriterionType === 'inclusion' ? 'success' : 'destructive'} className="text-[9px] px-1.5 py-0 shrink-0">
+                    {a.parentCriterionType === 'inclusion' ? 'INC' : 'EXC'}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground truncate">{a.parentCriterionName}</span>
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium flex-1 min-w-0 truncate">{a.label}</span>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">{a.category}</Badge>
+                  <span className="text-[11px] text-emerald-600 font-semibold shrink-0">{a.yes || '—'} pass</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 dark:text-blue-400 shrink-0">
+                    <Eye className="h-3 w-3" /> View data
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ═══ Structured atom data sheet ═══ */}
+      <Dialog
+        open={structuredAtomInSheet !== null}
+        onClose={() => setStructuredAtomSheetId(null)}
+        title={structuredAtomInSheet ? `${structuredAtomInSheet.label}` : ''}
+        className="max-w-3xl"
+      >
+        {structuredAtomInSheet && (
+          <div className="space-y-4">
+            {/* Header summary */}
+            <div className="flex flex-wrap items-center gap-2 pb-3 border-b">
+              <Badge variant={structuredAtomInSheet.parentCriterionType === 'inclusion' ? 'success' : 'destructive'} className="text-[10px] px-1.5 py-0">
+                {structuredAtomInSheet.parentCriterionType === 'inclusion' ? 'INC' : 'EXC'}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">{structuredAtomInSheet.parentCriterionName}</span>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-sm font-semibold">{structuredAtomInSheet.label}</span>
+              <Badge variant="processing" className="text-[10px] ml-auto">Structured · Auto-validated</Badge>
+            </div>
+
+            {/* Info banner */}
+            <div className="rounded-lg border border-blue-200 dark:border-blue-800/50 bg-blue-50/40 dark:bg-blue-950/20 px-4 py-2.5">
+              <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                <strong>Auto-validated from mapped table.</strong> This atom is matched directly against a structured database field — no LLM or reviewer action required. You can spot-check below.
+              </p>
+            </div>
+
+            {/* Keyword chips */}
+            {structuredAtomInSheet.keywords && structuredAtomInSheet.keywords.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Possible keywords / concepts</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {structuredAtomInSheet.keywords.map((kw) => (
+                    <Badge key={kw} variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {kw}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Data match counts */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border bg-card px-3 py-2">
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Matched</p>
+                <p className="text-lg font-bold text-emerald-600">{structuredAtomInSheet.yes.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border bg-card px-3 py-2">
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Unmatched</p>
+                <p className="text-lg font-bold text-red-600">{structuredAtomInSheet.no.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border bg-card px-3 py-2">
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Unknown</p>
+                <p className="text-lg font-bold text-muted-foreground">{structuredAtomInSheet.unknown.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button
+                onClick={() => setStructuredAtomSheetId(null)}
+                className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setStructuredAtomSheetId(null);
+                  nav(`/projects/${projectId}/ct-atom/${structuredAtomInSheet.id}`);
+                }}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer inline-flex items-center gap-1"
+              >
+                Open in detail <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
         )}
-      </div>
+      </Dialog>
+
+      {/* ═══ Tertiary: Criteria drill-down (collapsible below) ═══ */}
+      {filteredRows.length > 0 && (
+        <section className="space-y-2">
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div>
+                <h3 className="text-sm font-bold">All criteria</h3>
+                <p className="text-[11px] text-muted-foreground">Open a criterion to see its atoms, runs, and prompts</p>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">{criterionRows.length}</Badge>
+            </div>
+            <div className="divide-y">
+              {criterionRows.map((row) => {
+                const catMeta = getCategoryMeta(row.category);
+                return (
+                  <button
+                    key={row.id}
+                    onClick={() => nav(`/projects/${projectId}/ct-criteria/${row.id}`)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <MixednessDot mixedness={row.mixedness} />
+                    <span className="text-xs font-bold text-muted-foreground w-6">C{row.index}</span>
+                    <Badge variant={row.type === 'inclusion' ? 'success' : 'destructive'} className="text-[9px] px-1.5 py-0">
+                      {row.type === 'inclusion' ? 'INC' : 'EXC'}
+                    </Badge>
+                    <span className="text-sm font-medium flex-1 min-w-0 truncate">{row.name}</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${catMeta.bgColor} ${catMeta.color} shrink-0`}>
+                      {catMeta.icon} {row.category}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{row.atoms.length} atom{row.atoms.length !== 1 ? 's' : ''}</span>
+                    <StatusRollup
+                      status={row.status}
+                      completed={row.atoms.filter((a) => a.status === 'auto-validated').length}
+                      total={row.atoms.length}
+                      label="atoms"
+                    />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   Workflow,
   Wand2,
   Zap,
+  FlaskConical,
 } from 'lucide-react';
 
 export function HomePage() {
@@ -147,6 +148,30 @@ export function HomePage() {
               Open Studio <ArrowRight className="h-4 w-4" />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Model Quantisation entry */}
+      <div
+        className="group flex items-center gap-5 rounded-2xl border-2 border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-lg cursor-pointer"
+        onClick={() => navigate('/quantisation')}
+      >
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <FlaskConical className="h-6 w-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-base font-semibold">Model Quantisation</p>
+            <Badge className="text-[10px] font-bold px-2.5 py-0 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border-0">
+              NEW
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Compare FP16, Gemini 2.5 Flash, and more — side-by-side on real patient cohorts. Pick the best response per patient.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:gap-2.5 transition-all shrink-0">
+          Open <ArrowRight className="h-4 w-4" />
         </div>
       </div>
 

@@ -43,6 +43,8 @@ import { CTCriterionDetailPage } from '@/pages/CTCriterionDetailPage';
 import CTFunnelPage from '@/pages/CTFunnelPage';
 import CTMatrixPage from '@/pages/CTMatrixPage';
 import CTAtomDetailPage from '@/pages/CTAtomDetailPage';
+import { QuantisationPage } from '@/pages/QuantisationPage';
+import { ComorbidityRunPage } from '@/pages/ComorbidityRunPage';
 
 function AppRoutes() {
   const { loading } = useAppContext();
@@ -82,6 +84,8 @@ function AppRoutes() {
         <Route path="/agent-runner" element={<AgentRunnerPage />} />
         <Route path="/agent-builder" element={<AgentBuilderPage key={location.key} />} />
         <Route path="/guide" element={<GuidePage />} />
+        <Route path="/quantisation" element={<QuantisationPage />} />
+        <Route path="/quantisation/comorbidities" element={<ComorbidityRunPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -18,6 +18,7 @@ import {
   Copy,
   DatabaseZap,
   Filter,
+  FlaskConical,
   FolderOpen,
   LayoutGrid,
   List,
@@ -185,6 +186,13 @@ export function ProjectsPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/quantisation')}
+            className="flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-colors cursor-pointer"
+            title="Model Quantisation"
+          >
+            <FlaskConical className="h-4 w-4" />
+          </button>
           <button
             onClick={() => setSyncLogOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-colors cursor-pointer"
